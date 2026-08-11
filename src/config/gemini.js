@@ -11,5 +11,5 @@ const genAI = new GoogleGenerativeAI(apiKey);
 
 module.exports = {
   genAI,
-  modelName: process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+  modelName: process.env.GEMINI_MODEL || 'gemini-3.5-flash'
 };
