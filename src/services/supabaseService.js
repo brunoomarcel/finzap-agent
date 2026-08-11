@@ -11,9 +11,18 @@ const supabase = require('../config/supabase');
  * Uses Prisma ORM as primary database layer, with fallback to Supabase SDK if DATABASE_URL is not set.
  */
 class SupabaseService {
+  /**
+   * Normalizes phone number to digits only and ensures DDI 55 prefix.
+   */
   static cleanPhone(phone) {
     if (!phone) return '';
-    return phone.replace(/\D/g, '');
+    let digits = phone.replace(/\D/g, '');
+
+    // Always prefix DDI 55 if missing for Brazilian numbers (10 or 11 digits)
+    if (digits.length === 10 || digits.length === 11) {
+      digits = `55${digits}`;
+    }
+    return digits;
   }
 
   // ==========================================
@@ -26,9 +35,7 @@ class SupabaseService {
 
     try {
       if (process.env.DATABASE_URL) {
-        const users = await prisma.usuario.findMany({
-          where: { ativo: true }
-        });
+        const users = await prisma.usuario.findMany();
         return users.find(u => {
           const uDigits = SupabaseService.cleanPhone(u.telefone);
           return uDigits === rawDigits || uDigits.endsWith(rawDigits) || rawDigits.endsWith(uDigits);
@@ -39,7 +46,7 @@ class SupabaseService {
     }
 
     // Fallback to Supabase SDK
-    const { data } = await supabase.from('usuarios').select('*').eq('ativo', true);
+    const { data } = await supabase.from('usuarios').select('*');
     if (!data) return null;
 
     return data.find(u => {
@@ -65,8 +72,13 @@ class SupabaseService {
   }
 
   async createUser({ nome, telefone, ativo = true }) {
-    const cleanPhoneNum = SupabaseService.cleanPhone(telefone);
-    const finalPhone = cleanPhoneNum || telefone;
+    const finalPhone = SupabaseService.cleanPhone(telefone);
+
+    // Check if user with this phone number already exists
+    const existing = await this.findUserByPhone(finalPhone);
+    if (existing) {
+      throw new Error(`Já existe um usuário cadastrado com o número ${finalPhone} (${existing.nome}).`);
+    }
 
     try {
       if (process.env.DATABASE_URL) {
@@ -76,6 +88,9 @@ class SupabaseService {
       }
     } catch (err) {
       console.warn('Prisma error:', err.message);
+      if (err.code === 'P2002') {
+        throw new Error('Já existe um usuário cadastrado com este número de telefone.');
+      }
     }
 
     const { data, error } = await supabase
@@ -84,11 +99,25 @@ class SupabaseService {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === '23505') {
+        throw new Error('Já existe um usuário cadastrado com este número de telefone.');
+      }
+      throw error;
+    }
     return data;
   }
 
   async updateUser(id, updates) {
+    if (updates.telefone) {
+      updates.telefone = SupabaseService.cleanPhone(updates.telefone);
+
+      const existing = await this.findUserByPhone(updates.telefone);
+      if (existing && existing.id !== id) {
+        throw new Error(`Já existe um usuário registrado com este número de telefone (${existing.nome}).`);
+      }
+    }
+
     try {
       if (process.env.DATABASE_URL) {
         return await prisma.usuario.update({

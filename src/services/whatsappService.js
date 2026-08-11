@@ -6,11 +6,17 @@ const evolutionConfig = require('../config/evolution');
  */
 class WhatsappService {
   /**
-   * Cleans and normalizes phone number to digits only (e.g. 557996018591)
+   * Cleans and normalizes phone number to digits only, always ensuring DDI 55 prefix.
    */
   formatPhoneNumber(phone) {
     if (!phone) return '';
-    return phone.replace(/\D/g, '');
+    let digits = phone.replace(/\D/g, '');
+
+    // Always prefix DDI 55 if missing for Brazilian numbers (10 or 11 digits)
+    if (digits.length === 10 || digits.length === 11) {
+      digits = `55${digits}`;
+    }
+    return digits;
   }
 
   /**
@@ -69,9 +75,23 @@ class WhatsappService {
   /**
    * Standardized parser for incoming webhooks from Evolution API Go.
    * Extracts sender phone, text message, push name and instance token.
+   * Strictly filters out fromMe messages.
    */
   parseWebhookPayload(body) {
     if (!body) return null;
+
+    // 1. Strict check: Ignore messages sent by the instance itself (fromMe)
+    const isFromMe =
+      body.data?.key?.fromMe === true ||
+      body.key?.fromMe === true ||
+      body.data?.Info?.IsFromMe === true ||
+      body.data?.Info?.fromMe === true ||
+      body.fromMe === true;
+
+    if (isFromMe) {
+      console.log('🛑 [SECURITY] Ignored message sent by the instance itself (fromMe = true).');
+      return null;
+    }
 
     let senderPhone = null;
     let messageText = null;
@@ -98,7 +118,6 @@ class WhatsappService {
     if (!senderPhone) {
       const key = body.key || body.data?.key;
       if (key) {
-        if (key.fromMe) return null;
         senderPhone = (key.remoteJid || '').replace('@s.whatsapp.net', '');
       }
       if (!senderPhone && body.sender) {
@@ -121,6 +140,9 @@ class WhatsappService {
     if (!senderPhone || !messageText) {
       return null;
     }
+
+    // Always format sender phone with DDI 55
+    senderPhone = this.formatPhoneNumber(senderPhone);
 
     return {
       senderPhone,

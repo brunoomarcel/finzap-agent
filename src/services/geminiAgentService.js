@@ -20,8 +20,9 @@ class GeminiAgentService {
 
     const candidateModels = [
       process.env.GEMINI_MODEL || 'gemini-3.5-flash',
-      'gemini-3.1-flash-lite',
-      'gemini-2.0-flash'
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-2.5-flash'
     ];
     const uniqueModels = [...new Set(candidateModels)];
 
@@ -118,8 +119,8 @@ Diretrizes de Atendimento:
         console.warn(`⚠️ Model ${modelId} encountered error (${error.message}).`);
 
         if (error.status === 429 || (error.message && error.message.includes('429'))) {
-          console.warn(`⏳ Rate limit (429) on ${modelId}. Trying next fallback model...`);
-          await this.sleep(1000);
+          console.warn(`⏳ Rate limit (429) on ${modelId}. Waiting 1.5s before fallback model...`);
+          await this.sleep(1500);
           continue;
         } else {
           continue;
@@ -135,8 +136,14 @@ Diretrizes de Atendimento:
       return `📊 *Resumo Financeiro (${r.mes_ano}):*\n\n💰 *Receitas:* R$ ${r.total_receitas.toFixed(2)}\n💸 *Despesas:* R$ ${r.total_despesas.toFixed(2)}\n🟢 *Saldo Líquido:* R$ ${r.saldo_liquido.toFixed(2)}`;
     }
 
+    // Friendly default conversation fallback if it was a greeting/chat request and models hit 429
+    const lowerMsg = (userMessage || '').toLowerCase();
+    if (lowerMsg.includes('olá') || lowerMsg.includes('ola') || lowerMsg.includes('oi') || lowerMsg.includes('opa') || lowerMsg.includes('tudo bem')) {
+      return `Olá, ${usuario.nome}! 😊 Como posso te ajudar com suas finanças hoje? (Você pode registrar um gasto, receita ou consultar seu saldo).`;
+    }
+
     console.error('❌ All Gemini models failed:', lastError);
-    return 'Desculpe, limite de requisições da IA atingido temporariamente. Por favor, tente novamente em alguns segundos.';
+    return 'Desculpe, a IA está um pouco sobrecarregada agora. Por favor, tente novamente em alguns segundos.';
   }
 }
 
