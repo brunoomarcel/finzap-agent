@@ -1,11 +1,12 @@
 const supabaseService = require('../services/supabaseService');
 const whatsappService = require('../services/whatsappService');
 const geminiAgentService = require('../services/geminiAgentService');
+const groqAgentService = require('../services/groqAgentService');
 
 class WebhookController {
   /**
    * Handles incoming webhooks from Evolution API Go.
-   * Strictly enforces database user authorization and ignores fromMe messages.
+   * Dynamically routes to Groq AI (Llama 3.3 70B) or Gemini AI based on configuration.
    */
   async handleEvolutionWebhook(req, res) {
     // Always return HTTP 200 immediately to prevent Evolution API timeout / retries
@@ -35,8 +36,22 @@ class WebhookController {
 
       console.log(`✅ [AUTHORIZED USER] Processing request for registered user: ${usuario.nome} (Phone: ${senderPhone}, ID: ${usuario.id})`);
 
-      // 3. Process message through Gemini AI Agent ONLY FOR AUTHORIZED USERS
-      const agentReply = await geminiAgentService.processUserMessage(messageText, usuario);
+      // 3. Select AI Provider: Groq Cloud (Llama 3.3 70B) if GROQ_API_KEY is defined, else Gemini AI
+      let agentReply = '';
+      const useGroq = process.env.GROQ_API_KEY || process.env.AI_PROVIDER === 'groq';
+
+      if (useGroq && process.env.GROQ_API_KEY) {
+        console.log('🤖 Routing request to GROQ Cloud AI Engine...');
+        try {
+          agentReply = await groqAgentService.processUserMessage(messageText, usuario);
+        } catch (groqErr) {
+          console.warn('⚠️ GROQ failed, falling back to Gemini AI:', groqErr.message);
+          agentReply = await geminiAgentService.processUserMessage(messageText, usuario);
+        }
+      } else {
+        console.log('🤖 Routing request to Gemini AI Engine...');
+        agentReply = await geminiAgentService.processUserMessage(messageText, usuario);
+      }
 
       // 4. Send response back to user via WhatsApp (Evolution API Go)
       await whatsappService.sendMessage(senderPhone, agentReply, instanceToken);
