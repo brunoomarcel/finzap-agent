@@ -1,5 +1,5 @@
-# Use official Node.js LTS lightweight image
-FROM node:20-alpine AS builder
+# Use official Node.js 22 LTS lightweight image for native WebSocket support
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -15,7 +15,7 @@ RUN npx prisma generate
 COPY . .
 
 # Production runner stage
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production
