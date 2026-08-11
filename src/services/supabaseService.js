@@ -71,7 +71,22 @@ class SupabaseService {
     return data;
   }
 
-  async createUser({ nome, telefone, ativo = true }) {
+  async findUserById(id) {
+    if (!id) return null;
+    try {
+      if (process.env.DATABASE_URL) {
+        return await prisma.usuario.findUnique({ where: { id } });
+      }
+    } catch (err) {
+      console.warn('Prisma error:', err.message);
+    }
+
+    const { data, error } = await supabase.from('usuarios').select('*').eq('id', id).single();
+    if (error || !data) return null;
+    return data;
+  }
+
+  async createUser({ nome, telefone, senha = null, role = 'USER', ativo = true }) {
     const finalPhone = SupabaseService.cleanPhone(telefone);
 
     // Check if user with this phone number already exists
@@ -80,10 +95,16 @@ class SupabaseService {
       throw new Error(`Já existe um usuário cadastrado com o número ${finalPhone} (${existing.nome}).`);
     }
 
+    let senhaHash = null;
+    if (senha) {
+      const bcrypt = require('bcryptjs');
+      senhaHash = await bcrypt.hash(senha, 10);
+    }
+
     try {
       if (process.env.DATABASE_URL) {
         return await prisma.usuario.create({
-          data: { nome, telefone: finalPhone, ativo }
+          data: { nome, telefone: finalPhone, senha: senhaHash, role, ativo }
         });
       }
     } catch (err) {
@@ -95,7 +116,7 @@ class SupabaseService {
 
     const { data, error } = await supabase
       .from('usuarios')
-      .insert([{ nome, telefone: finalPhone, ativo }])
+      .insert([{ nome, telefone: finalPhone, senha: senhaHash, role, ativo }])
       .select()
       .single();
 
@@ -106,6 +127,36 @@ class SupabaseService {
       throw error;
     }
     return data;
+  }
+
+  async setPassword(id, novaSenha) {
+    const bcrypt = require('bcryptjs');
+    const senhaHash = await bcrypt.hash(novaSenha, 10);
+    return await this.updateUser(id, { senha: senhaHash });
+  }
+
+  async authenticateUser(telefone, senha) {
+    const user = await this.findUserByPhone(telefone);
+    if (!user) return { success: false, message: 'Usuário não encontrado com este telefone.' };
+    if (!user.ativo) return { success: false, message: 'Usuário inativo. Fale com o administrador.' };
+
+    // Se o usuário ainda não tiver senha gravada (ou coluna não populada), aceita a senha inicial '123456'
+    if (!user.senha) {
+      if (senha === '123456' || senha === 'admin') {
+        // Tenta salvar a senha criada
+        try { await this.setPassword(user.id, senha); } catch (e) {}
+        return { success: true, user: { ...user, role: user.role || 'ADMIN' } };
+      }
+      return { success: false, message: 'Primeiro acesso: utilize a senha inicial 123456 ou fale com o Administrador.' };
+    }
+
+    const bcrypt = require('bcryptjs');
+    const valid = await bcrypt.compare(senha, user.senha);
+    if (!valid) {
+      return { success: false, message: 'Senha incorreta.' };
+    }
+
+    return { success: true, user };
   }
 
   async updateUser(id, updates) {

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinZap Agent | Erro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="brand">
+      <div>FinZap Agent</div>
+      <span class="brand-tag">Web</span>
+    </div>
+    <div class="nav-links">
+      <a href="/" class="nav-link">Dashboard</a>
+      <% if (user && user.role === 'ADMIN') { %>
+        <a href="/admin" class="nav-link">Administração</a>
+      <% } %>
+      <a href="/logout" class="nav-link">Sair</a>
+    </div>
+  </nav>
+
+  <div class="container" style="max-width: 600px; margin-top: 4rem;">
+    <div class="card" style="text-align: center;">
+      <h2 style="margin-bottom: 1rem; color: var(--accent-red);">Acesso Bloqueado</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem;"><%= error %></p>
+      <a href="/" class="btn">Voltar ao Dashboard</a>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -6,7 +6,7 @@
   <title>FinZap Agent | Dashboard Financeiro</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -15,34 +15,33 @@
   <!-- Navigation -->
   <nav class="navbar">
     <div class="brand">
-      <div class="brand-icon">💬</div>
       <div>FinZap Agent</div>
+      <span class="brand-tag">Web</span>
     </div>
     <div class="nav-links">
-      <a href="/" class="nav-link active">Dashboard</a>
-      <a href="/usuarios" class="nav-link">Usuários Autorizados</a>
+      <a href="/" class="nav-link active">Meu Dashboard</a>
+      <% if (user && user.role === 'ADMIN') { %>
+        <a href="/admin" class="nav-link">Administração</a>
+      <% } %>
+      <div class="nav-user">
+        <span class="nav-user-name"><%= user.nome %></span>
+        <a href="/logout" class="nav-link" style="padding: 0.2rem 0.5rem;">Sair</a>
+      </div>
     </div>
   </nav>
 
   <div class="container">
     
-    <!-- User Selector & Month Filter -->
+    <!-- User Controls Bar -->
     <div class="filter-bar">
       <div>
-        <label for="userSelect" style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Selecione o Usuário:</label>
-        <select id="userSelect" class="select-input">
-          <% if (users && users.length > 0) { %>
-            <% users.forEach(u => { %>
-              <option value="<%= u.id %>"><%= u.nome %> (<%= u.telefone %>)</option>
-            <% }) %>
-          <% } else { %>
-            <option value="">Nenhum usuário cadastrado</option>
-          <% } %>
-        </select>
+        <div style="font-weight: 600; font-size: 1.05rem;"><%= user.nome %></div>
+        <div style="font-size: 0.85rem; color: var(--text-muted);"><%= user.telefone %></div>
+        <input type="hidden" id="userSelect" value="<%= user.id %>">
       </div>
 
       <div>
-        <label for="mesAnoSelect" style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Mês/Ano:</label>
+        <label for="mesAnoSelect" style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 0.2rem; font-weight: 600;">Filtrar Mês/Ano</label>
         <input type="month" id="mesAnoSelect" class="text-input" value="<%= new Date().toISOString().substring(0,7) %>">
       </div>
     </div>
@@ -72,18 +71,16 @@
       
       <!-- Recent Transactions Table -->
       <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
-          <div class="section-title" style="margin-bottom: 0;">
-            <span>📋</span> Últimas Transações
-          </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+          <div class="section-title" style="margin-bottom: 0;">Últimas Transações</div>
 
           <!-- Batch Actions Toolbar -->
           <div style="display: flex; gap: 0.5rem; align-items: center;">
             <button id="btnDeleteSelected" onclick="deleteSelectedTransactions()" class="btn btn-danger btn-sm" style="display: none;">
-              🗑️ Excluir Selecionados (<span id="selectedCount">0</span>)
+              Excluir Selecionados (<span id="selectedCount">0</span>)
             </button>
-            <button onclick="deleteAllTransactionsForUser()" class="btn btn-danger btn-sm" style="background: rgba(239, 68, 68, 0.15);">
-              ⚠️ Limpar Todas
+            <button onclick="deleteAllTransactionsForUser()" class="btn btn-danger btn-sm">
+              Limpar Todas
             </button>
           </div>
         </div>
@@ -92,7 +89,7 @@
           <table>
             <thead>
               <tr>
-                <th style="width: 40px; text-align: center;">
+                <th style="width: 36px; text-align: center;">
                   <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)" style="cursor: pointer;">
                 </th>
                 <th>Data</th>
@@ -114,20 +111,16 @@
 
       <!-- Budget Limits & Category Chart -->
       <div>
-        <div class="card" style="margin-bottom: 1.5rem;">
-          <div class="section-title">
-            <span>🎯</span> Limites de Gastos
-          </div>
+        <div class="card" style="margin-bottom: 1.25rem;">
+          <div class="section-title">Limites de Gastos</div>
           <div id="limitesContainer">
-            <p style="color: var(--text-muted); font-size: 0.9rem;">Nenhum limite definido.</p>
+            <p style="color: var(--text-muted); font-size: 0.85rem;">Nenhum limite definido para o período.</p>
           </div>
         </div>
 
         <div class="card">
-          <div class="section-title">
-            <span>📊</span> Gastos por Categoria
-          </div>
-          <div style="max-height: 250px; position: relative;">
+          <div class="section-title">Gastos por Categoria</div>
+          <div style="max-height: 240px; position: relative;">
             <canvas id="categoryChart"></canvas>
           </div>
         </div>

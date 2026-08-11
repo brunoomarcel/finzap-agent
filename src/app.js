@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const session = require('express-session');
 require('dotenv').config();
 
 const webhookRoutes = require('./routes/webhookRoutes');
@@ -8,6 +9,14 @@ const apiRoutes = require('./routes/apiRoutes');
 const viewRoutes = require('./routes/viewRoutes');
 
 const app = express();
+
+// Session setup
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'finzap_secret_key_2026',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24h
+}));
 
 // Middlewares with increased payload limit for rich WhatsApp webhook data (base64/certs)
 app.use(cors());

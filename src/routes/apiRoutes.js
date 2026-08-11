@@ -6,7 +6,16 @@ const apiController = require('../controllers/apiController');
 router.get('/users', (req, res) => apiController.getUsers(req, res));
 router.post('/users', (req, res) => apiController.createUser(req, res));
 router.put('/users/:id', (req, res) => apiController.updateUser(req, res));
+router.post('/users/:id/set-password', (req, res) => apiController.setUserPassword(req, res));
 router.delete('/users/:id', (req, res) => apiController.deleteUser(req, res));
+
+// Current Session Info
+router.get('/me', (req, res) => {
+  if (req.session && req.session.user) {
+    return res.json({ success: true, user: req.session.user });
+  }
+  return res.status(401).json({ success: false, error: 'Não autenticado' });
+});
 
 // Categories
 router.get('/categories', (req, res) => apiController.getCategories(req, res));

@@ -13,12 +13,26 @@ class ApiController {
 
   async createUser(req, res) {
     try {
-      const { nome, telefone, ativo } = req.body;
+      const { nome, telefone, senha, role, ativo } = req.body;
       if (!nome || !telefone) {
         return res.status(400).json({ success: false, error: 'Nome e telefone são obrigatórios.' });
       }
-      const user = await supabaseService.createUser({ nome, telefone, ativo });
+      const user = await supabaseService.createUser({ nome, telefone, senha, role, ativo });
       res.status(201).json({ success: true, data: user });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async setUserPassword(req, res) {
+    try {
+      const { id } = req.params;
+      const { senha } = req.body;
+      if (!senha || senha.length < 4) {
+        return res.status(400).json({ success: false, error: 'A senha deve ter pelo menos 4 caracteres.' });
+      }
+      const user = await supabaseService.setPassword(id, senha);
+      res.json({ success: true, message: 'Senha atualizada com sucesso.', data: user });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
     }

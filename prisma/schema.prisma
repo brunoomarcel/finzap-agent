@@ -12,6 +12,8 @@ model Usuario {
   id         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   nome       String        @db.VarChar
   telefone   String        @unique @db.VarChar
+  senha      String?       @db.VarChar
+  role       String        @default("USER") @db.VarChar
   ativo      Boolean       @default(true)
   createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz
   limites    LimiteGasto[]

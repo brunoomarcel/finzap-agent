@@ -150,8 +150,7 @@ async function deleteAllTransactionsForUser() {
   const userSelect = document.getElementById('userSelect');
   if (!userSelect || !userSelect.value) return;
 
-  const userName = userSelect.options[userSelect.selectedIndex].text;
-  if (!confirm(`⚠️ ATENÇÃO: Deseja realmente excluir TODAS as transações do usuário "${userName}"?Esta ação não pode ser desfeita.`)) {
+  if (!confirm(`ATENÇÃO: Deseja realmente excluir TODAS as transações deste usuário? Esta ação não pode ser desfeita.`)) {
     return;
   }
 
@@ -178,7 +177,7 @@ function renderLimites(limites) {
   if (!container) return;
 
   if (!limites || limites.length === 0) {
-    container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.9rem;">Nenhum teto de gasto configurado para este mês.</p>`;
+    container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem;">Nenhum teto de gasto configurado para este mês.</p>`;
     return;
   }
 
@@ -225,7 +224,7 @@ function renderChart(gastosPorCategoria) {
       datasets: [{
         data: values,
         backgroundColor: [
-          '#6366f1', '#10b981', '#ef4444', '#f59e0b', '#38bdf8', '#ec4899', '#8b5cf6'
+          '#2563eb', '#16a34a', '#dc2626', '#d97706', '#0284c7', '#db2777', '#9333ea'
         ],
         borderWidth: 0
       }]
@@ -236,7 +235,7 @@ function renderChart(gastosPorCategoria) {
       plugins: {
         legend: {
           position: 'right',
-          labels: { color: '#94a3b8', font: { family: 'Inter' } }
+          labels: { color: '#475569', font: { family: 'Inter' } }
         }
       }
     }

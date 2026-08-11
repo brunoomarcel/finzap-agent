@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinZap Agent | Administração</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="brand">
+      <div>FinZap Agent</div>
+      <span class="brand-tag">Admin</span>
+    </div>
+    <div class="nav-links">
+      <a href="/" class="nav-link">Meu Dashboard</a>
+      <a href="/admin" class="nav-link active">Administração</a>
+      <div class="nav-user">
+        <span class="nav-user-name"><%= user.nome %></span>
+        <a href="/logout" class="nav-link" style="padding: 0.2rem 0.5rem;">Sair</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    
+    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
+      
+      <!-- New User Form -->
+      <div class="card">
+        <div class="section-title">Cadastrar Novo Usuário</div>
+        <form id="addUserForm">
+          <div class="form-group">
+            <label for="nomeInput">Nome Completo</label>
+            <input type="text" id="nomeInput" class="form-control" placeholder="Ex: Bruno Marcel" required>
+          </div>
+          <div class="form-group">
+            <label for="telefoneInput">Telefone (WhatsApp)</label>
+            <input type="text" id="telefoneInput" class="form-control" placeholder="Ex: 5511999999999" required>
+          </div>
+          <div class="form-group">
+            <label for="senhaInput">Senha de Acesso Web</label>
+            <input type="password" id="senhaInput" class="form-control" placeholder="Defina uma senha" required>
+          </div>
+          <div class="form-group">
+            <label for="roleInput">Perfil de Acesso</label>
+            <select id="roleInput" class="select-input" style="width: 100%;">
+              <option value="USER">Usuário Padrão</option>
+              <option value="ADMIN">Administrador</option>
+            </select>
+          </div>
+          <button type="submit" class="btn" style="width: 100%;">Salvar Usuário</button>
+        </form>
+      </div>
+
+      <!-- Users List -->
+      <div class="card">
+        <div class="section-title">Usuários Cadastrados</div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Telefone</th>
+                <th>Perfil</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <% if (users && users.length > 0) { %>
+                <% users.forEach(u => { %>
+                  <tr>
+                    <td style="font-weight: 600;"><%= u.nome %></td>
+                    <td><%= u.telefone %></td>
+                    <td>
+                      <span class="badge <%= u.role === 'ADMIN' ? 'badge-admin' : 'badge-user' %>">
+                        <%= u.role || 'USER' %>
+                      </span>
+                    </td>
+                    <td>
+                      <span class="badge <%= u.ativo ? 'badge-receita' : 'badge-despesa' %>">
+                        <%= u.ativo ? 'Ativo' : 'Inativo' %>
+                      </span>
+                    </td>
+                    <td style="display: flex; gap: 0.35rem;">
+                      <button onclick="promptResetPassword('<%= u.id %>', '<%= u.nome %>')" class="btn btn-secondary btn-sm">Senha</button>
+                      <button onclick="deleteUser('<%= u.id %>')" class="btn btn-danger btn-sm">Excluir</button>
+                    </td>
+                  </tr>
+                <% }) %>
+              <% } else { %>
+                <tr>
+                  <td colspan="5" style="text-align: center; color: var(--text-muted);">Nenhum usuário cadastrado.</td>
+                </tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    document.getElementById('addUserForm')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nome = document.getElementById('nomeInput').value;
+      const telefone = document.getElementById('telefoneInput').value;
+      const senha = document.getElementById('senhaInput').value;
+      const role = document.getElementById('roleInput').value;
+
+      try {
+        const res = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, telefone, senha, role, ativo: true })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert('Usuário cadastrado com sucesso!');
+          window.location.reload();
+        } else {
+          alert('Erro ao cadastrar: ' + data.error);
+        }
+      } catch (err) {
+        alert('Erro de conexão: ' + err.message);
+      }
+    });
+
+    async function promptResetPassword(userId, userName) {
+      const novaSenha = prompt(`Digite a nova senha para ${userName}:`);
+      if (!novaSenha || novaSenha.trim().length < 4) {
+        if (novaSenha !== null) alert('A senha deve conter pelo menos 4 caracteres.');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/users/${userId}/set-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ senha: novaSenha })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert('Senha alterada com sucesso!');
+        } else {
+          alert('Erro ao alterar senha: ' + data.error);
+        }
+      } catch (err) {
+        alert('Erro de conexão: ' + err.message);
+      }
+    }
+
+    async function deleteUser(id) {
+      if (!confirm('Deseja realmente excluir este usuário?')) return;
+      try {
+        const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          window.location.reload();
+        } else {
+          alert('Erro: ' + data.error);
+        }
+      } catch (err) {
+        alert('Erro ao excluir: ' + err.message);
+      }
+    }
+  </script>
+</body>
+</html>

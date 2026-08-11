@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinZap Agent | Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="brand" style="justify-content: center; margin-bottom: 1rem;">
+        <div>FinZap Agent</div>
+        <span class="brand-tag">Web</span>
+      </div>
+
+      <h1 class="auth-title">Acesse sua conta</h1>
+      <p class="auth-subtitle">Digite seu telefone e senha para acessar o painel</p>
+
+      <% if (error) { %>
+        <div class="alert-error"><%= error %></div>
+      <% } %>
+
+      <form action="/login" method="POST">
+        <div class="form-group">
+          <label for="telefone">Telefone / WhatsApp</label>
+          <input type="text" id="telefone" name="telefone" class="form-control" placeholder="Ex: 5511999999999" required autofocus>
+        </div>
+
+        <div class="form-group">
+          <label for="senha">Senha</label>
+          <input type="password" id="senha" name="senha" class="form-control" placeholder="Sua senha de acesso" required>
+        </div>
+
+        <button type="submit" class="btn" style="width: 100%; padding: 0.7rem; font-size: 0.95rem; margin-bottom: 0.85rem;">Entrar</button>
+        <div style="text-align: center;">
+          <a href="/register" class="nav-link" style="font-size: 0.85rem; color: var(--primary);">Não tem uma conta? Cadastre-se</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</body>
+</html>

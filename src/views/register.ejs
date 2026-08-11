@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinZap Agent | Criar Conta</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="brand" style="justify-content: center; margin-bottom: 1rem;">
+        <div>FinZap Agent</div>
+        <span class="brand-tag">Web</span>
+      </div>
+
+      <h1 class="auth-title">Criar nova conta</h1>
+      <p class="auth-subtitle">Preencha seus dados para se cadastrar no sistema</p>
+
+      <% if (error) { %>
+        <div class="alert-error"><%= error %></div>
+      <% } %>
+
+      <form action="/register" method="POST">
+        <div class="form-group">
+          <label for="nome">Nome Completo</label>
+          <input type="text" id="nome" name="nome" class="form-control" placeholder="Ex: Bruno Marcel" required autofocus>
+        </div>
+
+        <div class="form-group">
+          <label for="telefone">Telefone / WhatsApp</label>
+          <input type="text" id="telefone" name="telefone" class="form-control" placeholder="Ex: 5511999999999 ou 11999999999" required>
+        </div>
+
+        <div class="form-group">
+          <label for="senha">Senha</label>
+          <input type="password" id="senha" name="senha" class="form-control" placeholder="Sua senha de acesso (mínimo 4 caracteres)" required minlength="4">
+        </div>
+
+        <button type="submit" class="btn" style="width: 100%; padding: 0.7rem; font-size: 0.95rem; margin-bottom: 0.85rem;">Cadastrar e Entrar</button>
+        <div style="text-align: center;">
+          <a href="/login" class="nav-link" style="font-size: 0.85rem; color: var(--primary);">Já tem uma conta? Faça login</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</body>
+</html>
