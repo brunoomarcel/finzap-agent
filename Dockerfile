@@ -1,7 +1,10 @@
-# Use official Node.js 22 LTS lightweight image for native WebSocket support
+# Use official Node.js 22 LTS lightweight image
 FROM node:22-alpine AS builder
 
 WORKDIR /app
+
+# Install openssl for Prisma binary compatibility
+RUN apk add --no-cache openssl
 
 # Copy dependency files
 COPY package*.json ./
@@ -19,6 +22,9 @@ FROM node:22-alpine AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Install openssl in runner stage
+RUN apk add --no-cache openssl
 
 # Copy node_modules and built app from builder stage
 COPY --from=builder /app ./
