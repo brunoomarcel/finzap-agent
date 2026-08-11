@@ -30,7 +30,7 @@ services:
       - GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - OPENROUTER_MODEL=${OPENROUTER_MODEL:-meta-llama/llama-3.3-70b-instruct:free}
-      - AI_PROVIDER=${AI_PROVIDER:-openrouter}
+      - AI_PROVIDER=${AI_PROVIDER:-groq}
 
 networks:
   vpsnet:
