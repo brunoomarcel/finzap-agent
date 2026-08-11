@@ -72,13 +72,29 @@
       
       <!-- Recent Transactions Table -->
       <div class="card">
-        <div class="section-title">
-          <span>📋</span> Últimas Transações (WhatsApp Agent)
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
+          <div class="section-title" style="margin-bottom: 0;">
+            <span>📋</span> Últimas Transações
+          </div>
+
+          <!-- Batch Actions Toolbar -->
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <button id="btnDeleteSelected" onclick="deleteSelectedTransactions()" class="btn btn-danger btn-sm" style="display: none;">
+              🗑️ Excluir Selecionados (<span id="selectedCount">0</span>)
+            </button>
+            <button onclick="deleteAllTransactionsForUser()" class="btn btn-danger btn-sm" style="background: rgba(239, 68, 68, 0.15);">
+              ⚠️ Limpar Todas
+            </button>
+          </div>
         </div>
+
         <div class="table-responsive">
           <table>
             <thead>
               <tr>
+                <th style="width: 40px; text-align: center;">
+                  <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)" style="cursor: pointer;">
+                </th>
                 <th>Data</th>
                 <th>Descrição</th>
                 <th>Categoria</th>
@@ -89,7 +105,7 @@
             </thead>
             <tbody id="transacoesTableBody">
               <tr>
-                <td colspan="6" style="text-align: center; color: var(--text-muted);">Carregando dados...</td>
+                <td colspan="7" style="text-align: center; color: var(--text-muted);">Carregando dados...</td>
               </tr>
             </tbody>
           </table>

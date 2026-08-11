@@ -1,7 +1,7 @@
 const supabaseService = require('../services/supabaseService');
 
 /**
- * Gemini Function Calling Tool Definitions and Executores
+ * Gemini Function Calling Tool Definitions and Executors
  */
 
 const toolDeclarations = [
@@ -89,6 +89,32 @@ const toolDeclarations = [
     }
   },
   {
+    name: 'deletar_multiplas_transacoes',
+    description: 'Exclui múltiplas transações fornecendo uma lista de IDs.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        transacao_ids: {
+          type: 'ARRAY',
+          items: { type: 'STRING' },
+          description: 'Lista de UUIDs de transações para excluir.'
+        }
+      },
+      required: ['transacao_ids']
+    }
+  },
+  {
+    name: 'limpar_todas_transacoes',
+    description: 'Exclui TODAS as transações cadastradas do usuário.',
+    parameters: {
+      type: 'OBJECT',
+      properties: {
+        confirmar: { type: 'BOOLEAN', description: 'Deve ser true para confirmar a exclusão de todo o histórico.' }
+      },
+      required: ['confirmar']
+    }
+  },
+  {
     name: 'atualizar_transacao',
     description: 'Atualiza informações de uma transação existente pelo seu ID.',
     parameters: {
@@ -140,9 +166,6 @@ const toolDeclarations = [
 
 /**
  * Handles execution of tool calls triggered by Gemini.
- * @param {string} toolName - Name of the tool to execute
- * @param {object} args - Arguments passed by Gemini
- * @param {object} context - User context object containing usuario (from DB)
  */
 async function executeTool(toolName, args, context) {
   const user = context.usuario;
@@ -166,7 +189,6 @@ async function executeTool(toolName, args, context) {
         data_transacao: args.data_transacao || new Date().toISOString()
       });
 
-      // Check if user has exceeded or is close to budget limit for this category
       let alertaLimite = null;
       if (args.categoria_nome) {
         const cat = await supabaseService.findCategoryByName(args.categoria_nome);
@@ -214,7 +236,6 @@ async function executeTool(toolName, args, context) {
     case 'definir_limite_gasto': {
       let cat = await supabaseService.findCategoryByName(args.categoria_nome);
       if (!cat) {
-        // Create category automatically if not exists
         cat = await supabaseService.createCategory({
           nome: args.categoria_nome,
           tipo: 'despesa'
@@ -256,6 +277,25 @@ async function executeTool(toolName, args, context) {
         mensagem: 'Transação excluída com sucesso.',
         resultado: res
       };
+    }
+
+    case 'deletar_multiplas_transacoes': {
+      const res = await supabaseService.deleteTransactions(args.transacao_ids);
+      return {
+        status: 'sucesso',
+        mensagem: `${res.count} transações foram excluídas com sucesso.`
+      };
+    }
+
+    case 'limpar_todas_transacoes': {
+      if (args.confirmar) {
+        const res = await supabaseService.deleteAllTransactions(userId);
+        return {
+          status: 'sucesso',
+          mensagem: `Todas as ${res.count} transações do usuário foram excluídas com sucesso.`
+        };
+      }
+      return { status: 'cancelado', mensagem: 'Operação cancelada (requer confirmação).' };
     }
 
     case 'atualizar_transacao': {

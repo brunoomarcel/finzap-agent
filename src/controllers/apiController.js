@@ -88,7 +88,7 @@ class ApiController {
       }
 
       const transactions = await supabaseService.listTransactions(usuario_id, {
-        limit: limit ? parseInt(limit, 10) : 50,
+        limit: limit ? parseInt(limit, 10) : 100,
         tipo_transacao,
         data_inicio,
         data_fim
@@ -114,6 +114,34 @@ class ApiController {
       const { id } = req.params;
       await supabaseService.deleteTransaction(id);
       res.json({ success: true, message: 'Transação removida.' });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async deleteTransactionsBatch(req, res) {
+    try {
+      const { ids } = req.body;
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ success: false, error: 'Nenhum ID fornecido para exclusão.' });
+      }
+
+      const result = await supabaseService.deleteTransactions(ids);
+      res.json({ success: true, message: `${result.count} transação(ões) excluída(s) com sucesso.`, count: result.count });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async deleteAllTransactions(req, res) {
+    try {
+      const { usuario_id } = req.body;
+      if (!usuario_id) {
+        return res.status(400).json({ success: false, error: 'usuario_id é obrigatório.' });
+      }
+
+      const result = await supabaseService.deleteAllTransactions(usuario_id);
+      res.json({ success: true, message: `Todas as ${result.count} transações do usuário foram excluídas.`, count: result.count });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
     }

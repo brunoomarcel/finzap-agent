@@ -16,7 +16,7 @@ class WebhookController {
         return;
       }
 
-      const { senderPhone, messageText, pushName } = parsed;
+      const { senderPhone, messageText, pushName, instanceToken } = parsed;
       console.log(`📩 Webhook received message from ${senderPhone} (${pushName}): "${messageText}"`);
 
       // SECURITY CHECK: Verify if sender phone exists in Supabase 'usuarios' table
@@ -24,7 +24,6 @@ class WebhookController {
 
       if (!usuario) {
         console.warn(`🛑 [SECURITY] Ignored message from unregistered number: ${senderPhone}`);
-        // Optionally send unauthorized notification or ignore quietly
         return;
       }
 
@@ -39,7 +38,7 @@ class WebhookController {
       const agentReply = await geminiAgentService.processUserMessage(messageText, usuario);
 
       // Send response back to user via WhatsApp (Evolution API Go)
-      await whatsappService.sendMessage(senderPhone, agentReply);
+      await whatsappService.sendMessage(senderPhone, agentReply, instanceToken);
 
     } catch (error) {
       console.error('❌ Error handling webhook:', error);

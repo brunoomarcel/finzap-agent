@@ -16,6 +16,8 @@ router.delete('/categories/:id', (req, res) => apiController.deleteCategory(req,
 // Transactions
 router.get('/transactions', (req, res) => apiController.getTransactions(req, res));
 router.post('/transactions', (req, res) => apiController.createTransaction(req, res));
+router.post('/transactions/delete-batch', (req, res) => apiController.deleteTransactionsBatch(req, res));
+router.post('/transactions/delete-all', (req, res) => apiController.deleteAllTransactions(req, res));
 router.delete('/transactions/:id', (req, res) => apiController.deleteTransaction(req, res));
 
 // Summary & Limits

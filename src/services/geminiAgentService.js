@@ -1,9 +1,14 @@
-const { genAI, modelName } = require('../config/gemini');
+const { genAI } = require('../config/gemini');
 const { toolDeclarations, executeTool } = require('../tools/agentTools');
 
 class GeminiAgentService {
+  sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
   /**
    * Processes a message from a WhatsApp user using Gemini AI Agent.
+   * Handles rate limits (429) gracefully and prevents duplicate database mutations.
    * @param {string} userMessage - Text message received from user
    * @param {object} usuario - User record from Supabase 'usuarios' table
    * @returns {Promise<string>} Text reply to send back on WhatsApp
@@ -14,19 +19,19 @@ class GeminiAgentService {
     }
 
     const candidateModels = [
-      modelName,
-      'gemini-2.5-flash',
-      'gemini-3.6-flash',
-      'gemini-3.5-flash',
-      'gemini-flash-latest'
+      process.env.GEMINI_MODEL || 'gemini-3.5-flash',
+      'gemini-3.1-flash-lite',
+      'gemini-2.0-flash'
     ];
     const uniqueModels = [...new Set(candidateModels)];
 
+    let mutationExecuted = false;
+    let readResult = null;
     let lastError = null;
 
     for (const modelId of uniqueModels) {
       try {
-        console.log(`🤖 Attempting initialization with Gemini model: ${modelId}`);
+        console.log(`🤖 Processing message with Gemini model: ${modelId}`);
 
         const model = genAI.getGenerativeModel({
           model: modelId,
@@ -43,20 +48,13 @@ Diretrizes de Atendimento:
 `
         });
 
-        const toolsConfig = [
-          {
-            functionDeclarations: toolDeclarations
-          }
-        ];
-
-        const chat = model.startChat({
-          tools: toolsConfig
-        });
+        const toolsConfig = [{ functionDeclarations: toolDeclarations }];
+        const chat = model.startChat({ tools: toolsConfig });
 
         let result = await chat.sendMessage(userMessage);
         let response = await result.response;
 
-        // Handle function calls loop (Max 5 iterations to avoid loops)
+        // Handle function calls loop (Max 5 iterations)
         let iterations = 0;
         while (iterations < 5) {
           const functionCalls = response.functionCalls();
@@ -70,8 +68,23 @@ Diretrizes de Atendimento:
           for (const call of functionCalls) {
             console.log(`🤖 Agent calling tool: [${call.name}] with args:`, call.args);
 
+            // Track mutation vs read tools
+            if (['registrar_transacao', 'deletar_transacao', 'deletar_multiplas_transacoes', 'limpar_todas_transacoes', 'atualizar_transacao', 'criar_categoria', 'deletar_categoria', 'definir_limite_gasto'].includes(call.name)) {
+              if (mutationExecuted) {
+                console.log(`⚠️ Skipping duplicate mutation tool [${call.name}] in same message processing.`);
+                continue;
+              }
+            }
+
             try {
               const toolResult = await executeTool(call.name, call.args, { usuario });
+
+              if (['registrar_transacao', 'deletar_transacao', 'deletar_multiplas_transacoes', 'limpar_todas_transacoes', 'atualizar_transacao', 'criar_categoria', 'deletar_categoria', 'definir_limite_gasto'].includes(call.name)) {
+                mutationExecuted = true;
+              } else {
+                readResult = toolResult;
+              }
+
               functionResponses.push({
                 functionResponse: {
                   name: call.name,
@@ -89,6 +102,10 @@ Diretrizes de Atendimento:
             }
           }
 
+          if (functionResponses.length === 0) {
+            break;
+          }
+
           // Send function execution results back to Gemini
           result = await chat.sendMessage(functionResponses);
           response = await result.response;
@@ -98,12 +115,28 @@ Diretrizes de Atendimento:
 
       } catch (error) {
         lastError = error;
-        console.warn(`⚠️ Model ${modelId} failed (${error.message}). Trying next fallback model...`);
+        console.warn(`⚠️ Model ${modelId} encountered error (${error.message}).`);
+
+        if (error.status === 429 || (error.message && error.message.includes('429'))) {
+          console.warn(`⏳ Rate limit (429) on ${modelId}. Trying next fallback model...`);
+          await this.sleep(1000);
+          continue;
+        } else {
+          continue;
+        }
       }
     }
 
+    // Fallback response if all AI models hit rate limit
+    if (mutationExecuted) {
+      return '✅ Operação realizada com sucesso no seu banco de dados!';
+    } else if (readResult && readResult.resumo) {
+      const r = readResult.resumo;
+      return `📊 *Resumo Financeiro (${r.mes_ano}):*\n\n💰 *Receitas:* R$ ${r.total_receitas.toFixed(2)}\n💸 *Despesas:* R$ ${r.total_despesas.toFixed(2)}\n🟢 *Saldo Líquido:* R$ ${r.saldo_liquido.toFixed(2)}`;
+    }
+
     console.error('❌ All Gemini models failed:', lastError);
-    return 'Desculpe, ocorreu um erro ao processar sua solicitação financeira. Por favor, tente novamente em instantes.';
+    return 'Desculpe, limite de requisições da IA atingido temporariamente. Por favor, tente novamente em alguns segundos.';
   }
 }
 

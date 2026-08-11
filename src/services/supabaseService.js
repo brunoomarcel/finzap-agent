@@ -457,7 +457,7 @@ class SupabaseService {
   }
 
   async listTransactions(usuarioId, options = {}) {
-    const { limit = 20, data_inicio, data_fim, tipo_transacao, categoria_id } = options;
+    const { limit = 50, data_inicio, data_fim, tipo_transacao, categoria_id } = options;
 
     try {
       if (process.env.DATABASE_URL) {
@@ -472,7 +472,7 @@ class SupabaseService {
 
         const res = await prisma.transacao.findMany({
           where,
-          take: limit ? parseInt(limit, 10) : 20,
+          take: limit ? parseInt(limit, 10) : 50,
           orderBy: { dataTransacao: 'desc' },
           include: { categoria: true }
         });
@@ -554,18 +554,66 @@ class SupabaseService {
     return data;
   }
 
-  async getFinancialSummary(usuarioId, mesAno = null) {
-    const targetDate = mesAno ? new Date(`${mesAno}-01`) : new Date();
-    const year = targetDate.getFullYear();
-    const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-    const formattedMesAno = `${year}-${month}`;
+  async deleteTransactions(idsArray) {
+    if (!idsArray || idsArray.length === 0) return { count: 0 };
 
-    const startOfMonth = new Date(year, targetDate.getMonth(), 1);
-    const endOfMonth = new Date(year, targetDate.getMonth() + 1, 0, 23, 59, 59);
+    try {
+      if (process.env.DATABASE_URL) {
+        const res = await prisma.transacao.deleteMany({
+          where: { id: { in: idsArray } }
+        });
+        return { count: res.count };
+      }
+    } catch (err) {
+      console.warn('Prisma error:', err.message);
+    }
+
+    const { data, error } = await supabase.from('transacoes').delete().in('id', idsArray).select();
+    if (error) throw error;
+    return { count: (data || []).length };
+  }
+
+  async deleteAllTransactions(usuarioId) {
+    try {
+      if (process.env.DATABASE_URL) {
+        const res = await prisma.transacao.deleteMany({
+          where: { usuarioId }
+        });
+        return { count: res.count };
+      }
+    } catch (err) {
+      console.warn('Prisma error:', err.message);
+    }
+
+    const { data, error } = await supabase.from('transacoes').delete().eq('usuario_id', usuarioId).select();
+    if (error) throw error;
+    return { count: (data || []).length };
+  }
+
+  /**
+   * Generates a monthly financial summary with timezone-safe month boundaries.
+   */
+  async getFinancialSummary(usuarioId, mesAno = null) {
+    let year, month;
+    if (mesAno && mesAno.includes('-')) {
+      const parts = mesAno.split('-');
+      year = parseInt(parts[0], 10);
+      month = parseInt(parts[1], 10);
+    } else {
+      const now = new Date();
+      year = now.getFullYear();
+      month = now.getMonth() + 1;
+    }
+
+    const formattedMesAno = `${year}-${String(month).padStart(2, '0')}`;
+
+    // Safely construct month start and end ISO strings without UTC offset shift
+    const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0)).toISOString();
+    const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999)).toISOString();
 
     const transacoes = await this.listTransactions(usuarioId, {
-      data_inicio: startOfMonth.toISOString(),
-      data_fim: endOfMonth.toISOString(),
+      data_inicio: startOfMonth,
+      data_fim: endOfMonth,
       limit: 500
     });
 

@@ -1,117 +1,90 @@
 const axios = require('axios');
 const evolutionConfig = require('../config/evolution');
 
+/**
+ * Standardized WhatsApp Service for Evolution API Go
+ */
 class WhatsappService {
   /**
-   * Formats a phone number for Evolution API (e.g. 5511999999999).
+   * Cleans and normalizes phone number to digits only (e.g. 557996018591)
    */
   formatPhoneNumber(phone) {
     if (!phone) return '';
-    let digits = phone.replace(/\D/g, '');
-    return digits;
+    return phone.replace(/\D/g, '');
   }
 
   /**
-   * Sends a text message to a WhatsApp number via Evolution API Go.
-   * @param {string} to - Destination phone number
-   * @param {string} message - Message text
+   * Standardized method to send text messages via Evolution API Go.
+   * Endpoint: POST /send/text
+   * Body: { "number": "557996018591", "text": "Mensagem..." }
+   * Header: apikey: <EVOLUTION_API_KEY or instanceToken>
+   * 
+   * @param {string} to - Recipient phone number
+   * @param {string} message - Text message content
+   * @param {string} instanceToken - Optional instance token from incoming webhook
+   * @returns {Promise<boolean>} Success status
    */
-  async sendMessage(to, message) {
-    const { baseUrl, apiKey, instanceName } = evolutionConfig;
+  async sendMessage(to, message, instanceToken = null) {
+    const { baseUrl, apiKey } = evolutionConfig;
+    const activeKey = instanceToken || apiKey;
 
-    if (!apiKey) {
-      console.warn('⚠️ EVOLUTION_API_KEY is not defined. Skipping WhatsApp response dispatch.');
-      console.log(`📱 [SIMULATION ONLY] Would send to ${to}:\n${message}`);
+    if (!activeKey) {
+      console.warn('⚠️ EVOLUTION_API_KEY is not defined in .env');
       return false;
     }
 
     const recipient = this.formatPhoneNumber(to);
-    const url = `${baseUrl.replace(/\/$/, '')}/message/sendText/${instanceName}`;
+    const cleanBaseUrl = baseUrl.replace(/\/$/, '');
+    const endpointUrl = `${cleanBaseUrl}/send/text`;
 
     try {
-      console.log(`🚀 Sending WhatsApp message to ${recipient} via Evolution API...`);
-      
+      console.log(`📱 [WhatsApp Outbound] Sending to ${recipient}...`);
+
       const response = await axios.post(
-        url,
+        endpointUrl,
         {
           number: recipient,
-          text: message,
-          options: {
-            delay: 1000,
-            presence: 'composing'
-          }
+          text: message
         },
         {
           headers: {
             'Content-Type': 'application/json',
-            'apikey': apiKey
+            'apikey': activeKey
           },
-          timeout: 15000
+          timeout: 10000
         }
       );
 
-      console.log('✅ WhatsApp message sent successfully:', response.data?.key || response.data);
-      return true;
-    } catch (error) {
-      console.error('❌ Failed to send WhatsApp message via Evolution API:', error.response?.data || error.message);
-      
-      // Fallback try for alternative v1 Evolution API payload structure
-      try {
-        const fallbackUrl = `${baseUrl.replace(/\/$/, '')}/message/sendText/${instanceName}`;
-        await axios.post(
-          fallbackUrl,
-          {
-            number: recipient,
-            textMessage: { text: message }
-          },
-          {
-            headers: { 'Content-Type': 'application/json', 'apikey': apiKey },
-            timeout: 10000
-          }
-        );
+      if (response.status === 200 || response.data?.message === 'success') {
+        console.log(`✅ [WhatsApp Outbound] Message successfully delivered to ${recipient}`);
         return true;
-      } catch (errFallback) {
-        console.error('❌ Fallback attempt also failed:', errFallback.message);
-        return false;
       }
+      return false;
+    } catch (error) {
+      console.error(`❌ [WhatsApp Outbound Error] Failed to send to ${recipient}:`, error.response?.data || error.message);
+      return false;
     }
   }
 
   /**
-   * Extracts user phone and text message content from incoming Evolution API webhook payload.
-   * Handles various Evolution API versions (MESSAGES_UPSERT, SEND_MESSAGE, etc.).
+   * Standardized parser for incoming webhooks from Evolution API Go.
+   * Extracts sender phone, text message, push name and instance token.
    */
   parseWebhookPayload(body) {
     if (!body) return null;
 
-    // Check Evolution API payload patterns
     let senderPhone = null;
     let messageText = null;
-    let pushName = null;
+    let pushName = 'Usuário';
 
-    // Standard Evolution API structure
-    const data = body.data || body;
-    
-    // Check sender jid or phone
-    const key = data.key || body.key;
-    if (key) {
-      if (key.fromMe) {
-        // Ignore messages sent by the bot itself
-        return null;
-      }
-      const remoteJid = key.remoteJid || '';
-      senderPhone = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');
-    }
+    // Evolution API Go structure
+    if (body.data) {
+      const info = body.data.Info || {};
+      const senderJid = info.Sender || info.Chat || '';
+      senderPhone = senderJid.replace('@s.whatsapp.net', '').replace('@g.us', '').replace('@lid', '');
+      pushName = info.PushName || 'Usuário';
 
-    if (!senderPhone && data.sender) {
-      senderPhone = data.sender.replace('@s.whatsapp.net', '');
-    }
-
-    pushName = data.pushName || body.pushName || 'Usuário';
-
-    // Extract text content from various message types
-    const msg = data.message || body.message;
-    if (msg) {
+      const msg = body.data.Message || {};
       messageText =
         msg.conversation ||
         msg.extendedTextMessage?.text ||
@@ -121,9 +94,28 @@ class WhatsappService {
         null;
     }
 
-    // Audio transcription or audio message handling fallback
-    if (!messageText && msg?.audioMessage) {
-      messageText = body.transcription || body.transcriptionText || '[Áudio recebido]';
+    // Fallback standard structure
+    if (!senderPhone) {
+      const key = body.key || body.data?.key;
+      if (key) {
+        if (key.fromMe) return null;
+        senderPhone = (key.remoteJid || '').replace('@s.whatsapp.net', '');
+      }
+      if (!senderPhone && body.sender) {
+        senderPhone = body.sender.replace('@s.whatsapp.net', '');
+      }
+
+      pushName = body.pushName || body.data?.pushName || pushName;
+
+      const msg = body.message || body.data?.message;
+      if (msg) {
+        messageText =
+          msg.conversation ||
+          msg.extendedTextMessage?.text ||
+          msg.imageMessage?.caption ||
+          msg.videoMessage?.caption ||
+          null;
+      }
     }
 
     if (!senderPhone || !messageText) {
@@ -133,7 +125,9 @@ class WhatsappService {
     return {
       senderPhone,
       messageText,
-      pushName
+      pushName,
+      instanceName: body.instanceName || evolutionConfig.instanceName,
+      instanceToken: body.instanceToken || null
     };
   }
 }

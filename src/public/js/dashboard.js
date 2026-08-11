@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
     mesAnoSelect.addEventListener('change', loadDashboardData);
   }
 
-  // Initial load
   loadDashboardData();
 });
 
@@ -26,6 +25,11 @@ async function loadDashboardData() {
   const userId = userSelect.value;
   const mesAno = mesAnoSelect ? mesAnoSelect.value : '';
 
+  // Reset select all checkbox & delete button
+  const masterCb = document.getElementById('selectAllCheckbox');
+  if (masterCb) masterCb.checked = false;
+  updateBatchDeleteButtonState();
+
   try {
     // 1. Fetch Summary (KPIs, Limits, Category breakdown)
     const summaryRes = await fetch(`/api/summary?usuario_id=${userId}&mes_ano=${mesAno}`);
@@ -38,7 +42,7 @@ async function loadDashboardData() {
     }
 
     // 2. Fetch Transactions List
-    const transRes = await fetch(`/api/transactions?usuario_id=${userId}&limit=30`);
+    const transRes = await fetch(`/api/transactions?usuario_id=${userId}&limit=100`);
     const transData = await transRes.json();
 
     if (transData.success) {
@@ -66,7 +70,8 @@ function renderTransactionsTable(transactions) {
   if (!tbody) return;
 
   if (!transactions || transactions.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Nenhuma transação registrada neste período.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Nenhuma transação registrada neste período.</td></tr>`;
+    updateBatchDeleteButtonState();
     return;
   }
 
@@ -74,11 +79,13 @@ function renderTransactionsTable(transactions) {
     const dataFmt = new Date(t.data_transacao).toLocaleDateString('pt-BR');
     const catNome = t.categoria ? t.categoria.nome : 'Sem Categoria';
     const isDespesa = t.tipo_transacao === 'despesa';
-    const badgeTipo = isDespesa ? 'badge-despesa' : 'badge-receita';
     const parcelasInfo = t.eh_parcelado ? ` (${t.parcela_atual}/${t.total_parcelas}x)` : '';
 
     return `
       <tr>
+        <td style="text-align: center;">
+          <input type="checkbox" class="row-checkbox" value="${t.id}" onclick="updateBatchDeleteButtonState()" style="cursor: pointer;">
+        </td>
         <td>${dataFmt}</td>
         <td><strong>${t.descricao}</strong>${parcelasInfo}</td>
         <td>${catNome}</td>
@@ -90,6 +97,80 @@ function renderTransactionsTable(transactions) {
       </tr>
     `;
   }).join('');
+
+  updateBatchDeleteButtonState();
+}
+
+function toggleSelectAll(masterCheckbox) {
+  const checkboxes = document.querySelectorAll('.row-checkbox');
+  checkboxes.forEach(cb => {
+    cb.checked = masterCheckbox.checked;
+  });
+  updateBatchDeleteButtonState();
+}
+
+function updateBatchDeleteButtonState() {
+  const selected = document.querySelectorAll('.row-checkbox:checked');
+  const btn = document.getElementById('btnDeleteSelected');
+  const countSpan = document.getElementById('selectedCount');
+
+  if (btn && countSpan) {
+    countSpan.textContent = selected.length;
+    btn.style.display = selected.length > 0 ? 'inline-flex' : 'none';
+  }
+}
+
+async function deleteSelectedTransactions() {
+  const selected = document.querySelectorAll('.row-checkbox:checked');
+  const ids = Array.from(selected).map(cb => cb.value);
+
+  if (ids.length === 0) return;
+
+  if (!confirm(`Excluir as ${ids.length} transações selecionadas?`)) return;
+
+  try {
+    const res = await fetch('/api/transactions/delete-batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      loadDashboardData();
+    } else {
+      alert('Erro ao excluir: ' + data.error);
+    }
+  } catch (err) {
+    alert('Erro de conexão: ' + err.message);
+  }
+}
+
+async function deleteAllTransactionsForUser() {
+  const userSelect = document.getElementById('userSelect');
+  if (!userSelect || !userSelect.value) return;
+
+  const userName = userSelect.options[userSelect.selectedIndex].text;
+  if (!confirm(`⚠️ ATENÇÃO: Deseja realmente excluir TODAS as transações do usuário "${userName}"?Esta ação não pode ser desfeita.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/transactions/delete-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario_id: userSelect.value })
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      loadDashboardData();
+    } else {
+      alert('Erro ao excluir: ' + data.error);
+    }
+  } catch (err) {
+    alert('Erro de conexão: ' + err.message);
+  }
 }
 
 function renderLimites(limites) {
