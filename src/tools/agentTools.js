@@ -12,7 +12,7 @@ const toolDeclarations = [
       type: 'OBJECT',
       properties: {
         descricao: { type: 'STRING', description: 'Descrição da transação (ex: Mercado, Salário, Aluguel, Almoço).' },
-        valor: { type: 'NUMBER', description: 'Valor numérico em Reais (ex: 45.90).' },
+        valor: { type: 'NUMBER', description: 'Valor numérico positivo em Reais (ex: 45.90 ou 4500). OBRIGATÓRIO e maior que zero.' },
         tipo_transacao: {
           type: 'STRING',
           enum: ['despesa', 'receita', 'emprestimo_tomado', 'emprestimo_concedido'],
@@ -165,7 +165,7 @@ const toolDeclarations = [
 ];
 
 /**
- * Handles execution of tool calls triggered by Gemini.
+ * Handles execution of tool calls triggered by AI Models.
  */
 async function executeTool(toolName, args, context) {
   const user = context.usuario;
@@ -177,10 +177,18 @@ async function executeTool(toolName, args, context) {
 
   switch (toolName) {
     case 'registrar_transacao': {
+      const valNum = parseFloat(args.valor);
+      if (isNaN(valNum) || valNum <= 0) {
+        return {
+          status: 'erro',
+          mensagem: 'O valor da transação deve ser um número maior que zero. Pergunte ao usuário qual é o valor em Reais antes de registrar.'
+        };
+      }
+
       const res = await supabaseService.createTransaction({
         usuario_id: userId,
         descricao: args.descricao,
-        valor: args.valor,
+        valor: valNum,
         tipo_transacao: args.tipo_transacao || 'despesa',
         metodo_pagamento: args.metodo_pagamento || 'pix',
         categoria_nome: args.categoria_nome,
