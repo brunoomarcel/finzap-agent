@@ -2,10 +2,7 @@ version: '3.8'
 
 services:
   finzap-agent:
-    image: finzap-agent:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/brunoomarcel/finzap-agent:latest
     ports:
       - "80:3000"
     environment:
