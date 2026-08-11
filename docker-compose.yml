@@ -3,8 +3,18 @@ version: '3.8'
 services:
   finzap-agent:
     image: ghcr.io/brunoomarcel/finzap-agent:latest
-    ports:
-      - "9820:3000"
+    networks:
+      - vpsnet
+    deploy:
+      mode: replicated
+      replicas: 1
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.finzap.rule=Host(`finzap-agent.curriculopronto.fun`)"
+        - "traefik.http.routers.finzap.entrypoints=websecure"
+        - "traefik.http.routers.finzap.tls=true"
+        - "traefik.http.routers.finzap.tls.certresolver=letsencrypt"
+        - "traefik.http.services.finzap.loadbalancer.server.port=3000"
     environment:
       - PORT=3000
       - NODE_ENV=production
@@ -16,3 +26,7 @@ services:
       - EVOLUTION_INSTANCE_NAME=${EVOLUTION_INSTANCE_NAME}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.5-flash}
+
+networks:
+  vpsnet:
+    external: true
