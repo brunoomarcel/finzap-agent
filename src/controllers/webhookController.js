@@ -1,13 +1,11 @@
 const supabaseService = require('../services/supabaseService');
 const whatsappService = require('../services/whatsappService');
-const geminiAgentService = require('../services/geminiAgentService');
 const groqAgentService = require('../services/groqAgentService');
-const openrouterAgentService = require('../services/openrouterAgentService');
 
 class WebhookController {
   /**
    * Handles incoming webhooks from Evolution API Go.
-   * Dynamically routes AI requests to OpenRouter, Groq, or Gemini with intelligent fallback.
+   * Powered exclusively by GROQ Cloud AI (Llama 3.3 70B).
    */
   async handleEvolutionWebhook(req, res) {
     // Always return HTTP 200 immediately to prevent Evolution API timeout / retries
@@ -37,34 +35,8 @@ class WebhookController {
 
       console.log(`✅ [AUTHORIZED USER] Processing request for registered user: ${usuario.nome} (Phone: ${senderPhone}, ID: ${usuario.id})`);
 
-      let agentReply = '';
-      const provider = process.env.AI_PROVIDER || (process.env.OPENROUTER_API_KEY ? 'openrouter' : (process.env.GROQ_API_KEY ? 'groq' : 'gemini'));
-
-      // 3. AI Engine Routing with Multi-Layer Fallback
-      if (provider === 'openrouter' && process.env.OPENROUTER_API_KEY) {
-        console.log('🌐 Routing request to OpenRouter Free AI Engine...');
-        try {
-          agentReply = await openrouterAgentService.processUserMessage(messageText, usuario);
-        } catch (openrouterErr) {
-          console.warn('⚠️ OpenRouter failed, trying Groq/Gemini fallback:', openrouterErr.message);
-          if (process.env.GROQ_API_KEY) {
-            agentReply = await groqAgentService.processUserMessage(messageText, usuario);
-          } else {
-            agentReply = await geminiAgentService.processUserMessage(messageText, usuario);
-          }
-        }
-      } else if (provider === 'groq' && process.env.GROQ_API_KEY) {
-        console.log('🤖 Routing request to GROQ Cloud AI Engine...');
-        try {
-          agentReply = await groqAgentService.processUserMessage(messageText, usuario);
-        } catch (groqErr) {
-          console.warn('⚠️ GROQ failed, falling back to Gemini AI:', groqErr.message);
-          agentReply = await geminiAgentService.processUserMessage(messageText, usuario);
-        }
-      } else {
-        console.log('🤖 Routing request to Gemini AI Engine...');
-        agentReply = await geminiAgentService.processUserMessage(messageText, usuario);
-      }
+      // 3. Process message exclusively using GROQ Cloud AI Engine (Llama 3.3 70B)
+      const agentReply = await groqAgentService.processUserMessage(messageText, usuario);
 
       // 4. Send response back to user via WhatsApp (Evolution API Go)
       await whatsappService.sendMessage(senderPhone, agentReply, instanceToken);
