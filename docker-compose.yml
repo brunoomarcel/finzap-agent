@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  finzap-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: finzap-agent
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
