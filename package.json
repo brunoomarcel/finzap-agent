@@ -1,0 +1,32 @@
+{
+  "name": "finzap-agent",
+  "version": "1.0.0",
+  "description": "Assistente Financeiro Pessoal no WhatsApp com AI Agent (Gemini), Supabase e Web UI",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": [
+    "whatsapp",
+    "ai",
+    "agent",
+    "gemini",
+    "supabase",
+    "finance",
+    "evolution-api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.0",
+    "@prisma/client": "^5.22.0",
+    "@supabase/supabase-js": "^2.49.1",
+    "axios": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "prisma": "^5.22.0"
+  }
+}

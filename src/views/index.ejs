@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinZap Agent | Dashboard Financeiro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="brand">
+      <div class="brand-icon">💬</div>
+      <div>FinZap Agent</div>
+    </div>
+    <div class="nav-links">
+      <a href="/" class="nav-link active">Dashboard</a>
+      <a href="/usuarios" class="nav-link">Usuários Autorizados</a>
+    </div>
+  </nav>
+
+  <div class="container">
+    
+    <!-- User Selector & Month Filter -->
+    <div class="filter-bar">
+      <div>
+        <label for="userSelect" style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Selecione o Usuário:</label>
+        <select id="userSelect" class="select-input">
+          <% if (users && users.length > 0) { %>
+            <% users.forEach(u => { %>
+              <option value="<%= u.id %>"><%= u.nome %> (<%= u.telefone %>)</option>
+            <% }) %>
+          <% } else { %>
+            <option value="">Nenhum usuário cadastrado</option>
+          <% } %>
+        </select>
+      </div>
+
+      <div>
+        <label for="mesAnoSelect" style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 0.25rem;">Mês/Ano:</label>
+        <input type="month" id="mesAnoSelect" class="text-input" value="<%= new Date().toISOString().substring(0,7) %>">
+      </div>
+    </div>
+
+    <!-- Top KPI Cards -->
+    <div class="grid-cards">
+      <div class="card">
+        <div class="card-subtitle">Receitas do Mês</div>
+        <div class="card-value value-green" id="kpiReceitas">R$ 0,00</div>
+      </div>
+      <div class="card">
+        <div class="card-subtitle">Despesas do Mês</div>
+        <div class="card-value value-red" id="kpiDespesas">R$ 0,00</div>
+      </div>
+      <div class="card">
+        <div class="card-subtitle">Saldo Líquido</div>
+        <div class="card-value value-blue" id="kpiSaldo">R$ 0,00</div>
+      </div>
+      <div class="card">
+        <div class="card-subtitle">Total de Transações</div>
+        <div class="card-value" id="kpiTransacoesCount">0</div>
+      </div>
+    </div>
+
+    <!-- Main Grid: Transactions & Budget Limits -->
+    <div class="grid-main">
+      
+      <!-- Recent Transactions Table -->
+      <div class="card">
+        <div class="section-title">
+          <span>📋</span> Últimas Transações (WhatsApp Agent)
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Descrição</th>
+                <th>Categoria</th>
+                <th>Método</th>
+                <th>Valor</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="transacoesTableBody">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted);">Carregando dados...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Budget Limits & Category Chart -->
+      <div>
+        <div class="card" style="margin-bottom: 1.5rem;">
+          <div class="section-title">
+            <span>🎯</span> Limites de Gastos
+          </div>
+          <div id="limitesContainer">
+            <p style="color: var(--text-muted); font-size: 0.9rem;">Nenhum limite definido.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title">
+            <span>📊</span> Gastos por Categoria
+          </div>
+          <div style="max-height: 250px; position: relative;">
+            <canvas id="categoryChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>
