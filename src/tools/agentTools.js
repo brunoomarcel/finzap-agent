@@ -1,168 +1,10 @@
 const supabaseService = require('../services/supabaseService');
 
 /**
- * Gemini Function Calling Tool Definitions and Executors
+ * Tool Definitions and Executors for Agent Function Calling
  */
 
-const toolDeclarations = [
-  {
-    name: 'registrar_transacao',
-    description: 'Registra uma nova transação financeira (despesa, receita, empréstimo tomado ou concedido), incluindo parcelamentos.',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        descricao: { type: 'STRING', description: 'Descrição da transação (ex: Mercado, Salário, Aluguel, Almoço).' },
-        valor: { type: 'NUMBER', description: 'Valor numérico positivo em Reais (ex: 45.90 ou 4500). OBRIGATÓRIO e maior que zero.' },
-        tipo_transacao: {
-          type: 'STRING',
-          enum: ['despesa', 'receita', 'emprestimo_tomado', 'emprestimo_concedido'],
-          description: 'Tipo de transação. Padrão: despesa.'
-        },
-        metodo_pagamento: {
-          type: 'STRING',
-          enum: ['pix', 'dinheiro', 'cartao_credito', 'cartao_debito', 'outros'],
-          description: 'Forma de pagamento utilizada.'
-        },
-        categoria_nome: { type: 'STRING', description: 'Nome da categoria (ex: Alimentação, Transporte, Moradia, Lazer, Saúde, Salário).' },
-        eh_parcelado: { type: 'BOOLEAN', description: 'Se true, indica que a compra é parcelada.' },
-        total_parcelas: { type: 'INTEGER', description: 'Quantidade total de parcelas (ex: 3, 10, 12).' },
-        data_transacao: { type: 'STRING', description: 'Data da transação no formato ISO ou YYYY-MM-DD (opcional, padrão: agora).' }
-      },
-      required: ['descricao', 'valor']
-    }
-  },
-  {
-    name: 'listar_transacoes',
-    description: 'Lista e consulta os lançamentos/transações do usuário com filtros opcionais.',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        limit: { type: 'INTEGER', description: 'Quantidade máxima de registros a retornar (padrão: 10).' },
-        tipo_transacao: { type: 'STRING', enum: ['despesa', 'receita', 'emprestimo_tomado', 'emprestimo_concedido'], description: 'Filtrar por tipo.' },
-        data_inicio: { type: 'STRING', description: 'Data inicial para filtro (YYYY-MM-DD).' },
-        data_fim: { type: 'STRING', description: 'Data final para filtro (YYYY-MM-DD).' }
-      }
-    }
-  },
-  {
-    name: 'obter_resumo_financeiro',
-    description: 'Obtém o resumo financeiro do mês (total de receitas, despesas, saldo, limite por categoria e alertas).',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        mes_ano: { type: 'STRING', description: 'Ano e mês no formato YYYY-MM (ex: 2026-08). Opcional, padrão: mês atual.' }
-      }
-    }
-  },
-  {
-    name: 'definir_limite_gasto',
-    description: 'Define ou atualiza um teto/limite de gastos mensal para uma categoria específica.',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        categoria_nome: { type: 'STRING', description: 'Nome da categoria (ex: Alimentação, Lazer).' },
-        valor_limite: { type: 'NUMBER', description: 'Valor limite em Reais (ex: 500.00).' },
-        mes_ano: { type: 'STRING', description: 'Mês e ano no formato YYYY-MM (ex: 2026-08). Opcional, padrão: mês atual.' }
-      },
-      required: ['categoria_nome', 'valor_limite']
-    }
-  },
-  {
-    name: 'listar_limites_gastos',
-    description: 'Lista os limites de gastos configurados e a situação atual do orçamento.',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        mes_ano: { type: 'STRING', description: 'Mês e ano no formato YYYY-MM (ex: 2026-08).' }
-      }
-    }
-  },
-  {
-    name: 'deletar_transacao',
-    description: 'Exclui uma transação pelo seu ID.',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        transacao_id: { type: 'STRING', description: 'UUID da transação a ser deletada.' }
-      },
-      required: ['transacao_id']
-    }
-  },
-  {
-    name: 'deletar_multiplas_transacoes',
-    description: 'Exclui múltiplas transações fornecendo uma lista de IDs.',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        transacao_ids: {
-          type: 'ARRAY',
-          items: { type: 'STRING' },
-          description: 'Lista de UUIDs de transações para excluir.'
-        }
-      },
-      required: ['transacao_ids']
-    }
-  },
-  {
-    name: 'limpar_todas_transacoes',
-    description: 'Exclui TODAS as transações cadastradas do usuário.',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        confirmar: { type: 'BOOLEAN', description: 'Deve ser true para confirmar a exclusão de todo o histórico.' }
-      },
-      required: ['confirmar']
-    }
-  },
-  {
-    name: 'atualizar_transacao',
-    description: 'Atualiza informações de uma transação existente pelo seu ID.',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        transacao_id: { type: 'STRING', description: 'UUID da transação.' },
-        descricao: { type: 'STRING', description: 'Nova descrição.' },
-        valor: { type: 'NUMBER', description: 'Novo valor.' },
-        categoria_nome: { type: 'STRING', description: 'Novo nome da categoria.' },
-        metodo_pagamento: { type: 'STRING', description: 'Novo método de pagamento.' }
-      },
-      required: ['transacao_id']
-    }
-  },
-  {
-    name: 'listar_categorias',
-    description: 'Lista todas as categorias cadastradas no sistema.',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        tipo: { type: 'STRING', enum: ['receita', 'despesa'], description: 'Filtrar por tipo (opcional).' }
-      }
-    }
-  },
-  {
-    name: 'criar_categoria',
-    description: 'Cria uma nova categoria de receita ou despesa.',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        nome: { type: 'STRING', description: 'Nome da nova categoria.' },
-        tipo: { type: 'STRING', enum: ['receita', 'despesa'], description: 'Tipo da categoria.' }
-      },
-      required: ['nome', 'tipo']
-    }
-  },
-  {
-    name: 'deletar_categoria',
-    description: 'Deleta uma categoria pelo ID.',
-    parameters: {
-      type: 'OBJECT',
-      properties: {
-        categoria_id: { type: 'STRING', description: 'UUID da categoria.' }
-      },
-      required: ['categoria_id']
-    }
-  }
-];
+const toolDeclarations = [];
 
 /**
  * Handles execution of tool calls triggered by AI Models.
@@ -185,20 +27,30 @@ async function executeTool(toolName, args, context) {
         };
       }
 
+      // Automatic Safeguard: Detect income keywords in description or category and force 'receita'
+      const descLower = (args.descricao || '').toLowerCase();
+      const catLower = (args.categoria_nome || '').toLowerCase();
+      const incomeKeywords = ['salário', 'salario', 'rendimento', 'venda', 'freelance', 'pro-labore', 'prolabore', 'comissão', 'comissao', 'cashback', 'reembolso', 'pagamento recebido'];
+
+      let tipoFinal = args.tipo_transacao || 'despesa';
+      if (incomeKeywords.some(kw => descLower.includes(kw) || catLower.includes(kw))) {
+        tipoFinal = 'receita';
+      }
+
       const res = await supabaseService.createTransaction({
         usuario_id: userId,
         descricao: args.descricao,
         valor: valNum,
-        tipo_transacao: args.tipo_transacao || 'despesa',
+        tipo_transacao: tipoFinal,
         metodo_pagamento: args.metodo_pagamento || 'pix',
-        categoria_nome: args.categoria_nome,
+        categoria_nome: args.categoria_nome || (tipoFinal === 'receita' ? 'Salário' : 'Outros'),
         eh_parcelado: args.eh_parcelado || false,
         total_parcelas: args.total_parcelas || 1,
         data_transacao: args.data_transacao || new Date().toISOString()
       });
 
       let alertaLimite = null;
-      if (args.categoria_nome) {
+      if (args.categoria_nome && tipoFinal === 'despesa') {
         const cat = await supabaseService.findCategoryByName(args.categoria_nome);
         if (cat) {
           const now = new Date();
@@ -311,6 +163,7 @@ async function executeTool(toolName, args, context) {
       if (args.descricao) updates.descricao = args.descricao;
       if (args.valor) updates.valor = parseFloat(args.valor);
       if (args.metodo_pagamento) updates.metodo_pagamento = args.metodo_pagamento;
+      if (args.tipo_transacao) updates.tipo_transacao = args.tipo_transacao;
       if (args.categoria_nome) {
         const cat = await supabaseService.findCategoryByName(args.categoria_nome);
         if (cat) updates.categoria_id = cat.id;

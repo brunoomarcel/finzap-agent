@@ -14,11 +14,11 @@ const groqTools = [
         type: 'object',
         properties: {
           descricao: { type: 'string', description: 'Descrição da transação (ex: Mercado, Salário, Aluguel).' },
-          valor: { type: 'number', description: 'Valor numérico em Reais (ex: 45.90).' },
+          valor: { type: 'number', description: 'Valor numérico em Reais (ex: 45.90 ou 4500). OBRIGATÓRIO e maior que zero.' },
           tipo_transacao: {
             type: 'string',
             enum: ['despesa', 'receita', 'emprestimo_tomado', 'emprestimo_concedido'],
-            description: 'Tipo de transação. Padrão: despesa.'
+            description: 'Tipo de transação. ATENÇÃO: Salário, rendimento, pagamento recebido, vendas, PIX recebido DEVEM SER tipo "receita". Compras, contas, almoço, mercado DEVEM SER "despesa".'
           },
           metodo_pagamento: {
             type: 'string',
@@ -30,7 +30,7 @@ const groqTools = [
           total_parcelas: { type: 'integer', description: 'Quantidade total de parcelas (ex: 3, 10, 12).' },
           data_transacao: { type: 'string', description: 'Data da transação no formato ISO ou YYYY-MM-DD.' }
         },
-        required: ['descricao', 'valor']
+        required: ['descricao', 'valor', 'tipo_transacao']
       }
     }
   },
@@ -150,7 +150,8 @@ const groqTools = [
           descricao: { type: 'string', description: 'Nova descrição.' },
           valor: { type: 'number', description: 'Novo valor.' },
           categoria_nome: { type: 'string', description: 'Novo nome da categoria.' },
-          metodo_pagamento: { type: 'string', description: 'Novo método de pagamento.' }
+          metodo_pagamento: { type: 'string', description: 'Novo método de pagamento.' },
+          tipo_transacao: { type: 'string', enum: ['despesa', 'receita', 'emprestimo_tomado', 'emprestimo_concedido'] }
         },
         required: ['transacao_id']
       }
@@ -205,19 +206,34 @@ class GroqAgentService {
    * Processes a user message using Groq Cloud AI Models (Ultra-fast & high rate limits).
    */
   async processUserMessage(userMessage, usuario) {
-    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+    const groqKey = process.env.GROQ_API_KEY;
+    if (!groqKey) {
+      throw new Error('GROQ_API_KEY is missing in environment variables.');
+    }
+
+    const groq = new Groq({ apiKey: groqKey });
     const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
 
     console.log(`🚀 [GROQ AI] Processing message with model: ${model}`);
 
     const systemPrompt = `Você é o assistente de finanças pessoais do WhatsApp para o usuário "${usuario.nome}".
-Sua tarefa é ajudar o usuário a gerenciar suas finanças com agilidade, clareza e educação.
+Sua tarefa é ajudar o usuário a gerenciar suas finanças com agilidade, clareza e inteligência financeira.
 
-Diretrizes:
-1. Responda em português do Brasil com tom amigável e direto (use emojis apropriados para WhatsApp).
-2. O usuário pode enviar gastos, receitas, limites ou consultas (ex: "Gastei 50 no Uber", "Qual o meu saldo?", "Quanto recebi este mês?").
-3. Use as ferramentas disponíveis para consultar ou registrar dados diretamente no banco de dados.
-4. A data atual é: ${new Date().toLocaleDateString('pt-BR')} (considere este ano e mês para termos relativos como 'hoje', 'ontem', 'este mês').`;
+Regras Estritas de Classificação de Transações:
+1. RECEITAS (ENTRADAS DE DINHEIRO):
+   - Salário, pagamento recebido, rendimentos, dividendos, freelance, vendas, PIX recebido, presente em dinheiro, reembolso, cashback.
+   - O tipo_transacao DEVE SER OBRIGATORIAMENTE "receita"! Exemplo: "recebi meu salario de 4500" -> tipo_transacao: "receita", valor: 4500, descricao: "Salário".
+
+2. DESPESAS (SAÍDAS DE DINHEIRO):
+   - Mercado, almoço, jantar, Uber, aluguel, luz, água, compras, lazer, farmácia, assinaturas, cartão de crédito.
+   - O tipo_transacao DEVE SER OBRIGATORIAMENTE "despesa"!
+
+3. SE O USUÁRIO NÃO INFORMAR O VALOR EM REAIS:
+   - NÃO tente registrar R$ 0,00! Pergunte a ele: "Qual o valor do seu salário em Reais?" antes de chamar a ferramenta.
+
+Diretrizes Gerais:
+- Responda em português do Brasil com tom amigável e direto (use emojis apropriados para WhatsApp).
+- A data atual é: ${new Date().toLocaleDateString('pt-BR')} (considere este ano e mês para termos relativos como 'hoje', 'ontem', 'este mês').`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -235,7 +251,7 @@ Diretrizes:
         model,
         tools: groqTools,
         tool_choice: 'auto',
-        temperature: 0.2
+        temperature: 0.1
       });
 
       const responseMessage = completion.choices[0].message;
