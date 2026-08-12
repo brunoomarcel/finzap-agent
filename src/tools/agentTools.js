@@ -141,6 +141,14 @@ async function executeTool(toolName, args, context) {
     }
 
     case 'definir_limite_gasto': {
+      const valLim = parseFloat(args.valor_limite);
+      if (isNaN(valLim) || valLim <= 0) {
+        return {
+          status: 'erro',
+          mensagem: 'O valor limite em Reais é obrigatório e deve ser maior que zero. Pergunte ao usuário qual é o valor limite em Reais antes de salvar.'
+        };
+      }
+
       let cat = await supabaseService.findCategoryByName(args.categoria_nome);
       if (!cat) {
         cat = await supabaseService.createCategory({

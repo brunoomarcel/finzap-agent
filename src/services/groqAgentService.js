@@ -73,7 +73,7 @@ const groqTools = [
         type: 'object',
         properties: {
           categoria_nome: { type: 'string', description: 'Nome da categoria (ex: Alimentação, Lazer).' },
-          valor_limite: { type: 'number', description: 'Valor limite em Reais (ex: 500.00).' },
+          valor_limite: { type: 'number', description: 'Valor limite em Reais (ex: 500.00). OBRIGATÓRIO e maior que zero. NUNCA invente ou adivinhe este valor se o usuário não disser.' },
           mes_ano: { type: 'string', description: 'Mês e ano no formato YYYY-MM (ex: 2026-08).' }
         },
         required: ['categoria_nome', 'valor_limite']
@@ -281,6 +281,7 @@ REGRAS DE REGISTRO E OBRIGATORIEDADE DE DADOS:
    - SAÍDAS DE DINHEIRO (Mercado, contas, compras, almoço, Uber, lazer) = "despesa".
 
 6. MONITORAMENTO E ALERTAS DE LIMITES DE GASTOS:
+   - NUNCA INVENTE OU ADIVINHE O VALOR DE UM LIMITE! Se o usuário disser apenas o nome da categoria (ex: "Higiene") sem informar o valor limite em Reais, NÃO CHAME a ferramenta 'definir_limite_gasto'. Pergunte educadamente: "Qual o valor limite em Reais que deseja definir para a categoria Higiene?".
    - Se o retorno da ferramenta contiver um "alerta_limite", ou se o usuário perguntar quanto pode gastar (ex: "quanto ainda posso gastar em Alimentação?", "como está meu limite?"), INFORME proativamente o status do orçamento, o limite total estipulado, quanto já foi consumido e quanto ele AINDA PODE GASTAR.
    - Dê avisos claros quando o usuário atingir 80% do limite ou estourar o teto estipulado, sugerindo moderação ou ajustes com empatia.
 
