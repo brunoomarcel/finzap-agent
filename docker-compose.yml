@@ -8,6 +8,10 @@ services:
     deploy:
       mode: replicated
       replicas: 1
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 5s
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.finzap.rule=Host(`finzap-agent.curriculopronto.fun`)"
