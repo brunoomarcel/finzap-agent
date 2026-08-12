@@ -37,7 +37,7 @@ app.use('/', viewRoutes);
 
 // 404 Handler
 app.use((req, res) => {
-  res.status(404).render('index', { users: [], error: 'Página não encontrada.' });
+  res.status(404).render('error', { user: req.session?.user || null, error: 'Página não encontrada.' });
 });
 
 module.exports = app;
