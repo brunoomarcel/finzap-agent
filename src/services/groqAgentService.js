@@ -199,6 +199,35 @@ const groqTools = [
         required: ['categoria_id']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'registrar_multiplas_transacoes',
+      description: 'Registra um lote (lista) de múltiplas transações financeiras enviadas de uma só vez (relatórios, faturas, extratos).',
+      parameters: {
+        type: 'object',
+        properties: {
+          data_transacao: { type: 'string', description: 'Data padrão para todas as transações (opcional, YYYY-MM-DD).' },
+          transacoes: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                descricao: { type: 'string', description: 'Descrição da transação (ex: PicPay, Moto, Água).' },
+                valor: { type: 'number', description: 'Valor numérico em Reais.' },
+                tipo_transacao: { type: 'string', enum: ['despesa', 'receita', 'emprestimo_tomado', 'emprestimo_concedido'] },
+                categoria_nome: { type: 'string', description: 'Nome da categoria (ex: Alimentação, Transporte, Moradia, Lazer, Salário).' },
+                metodo_pagamento: { type: 'string', description: 'Forma de pagamento (ex: pix, cartao_credito, dinheiro).' }
+              },
+              required: ['descricao', 'valor', 'tipo_transacao']
+            },
+            description: 'Lista de transações a serem cadastradas em lote.'
+          }
+        },
+        required: ['transacoes']
+      }
+    }
   }
 ];
 
@@ -220,9 +249,9 @@ class GroqAgentService {
 
     const candidateModels = [
       process.env.GROQ_MODEL || 'llama-3.3-70b-versatile',
-      'llama-3.1-8b-instant', // 500,000 Tokens/Day limit!
-      'mixtral-8x7b-32768',
-      'gemma2-9b-it'
+      'llama-3.1-8b-instant',
+      'llama-3.3-70b-specdec',
+      'llama-3.2-11b-vision-instruct'
     ];
     const uniqueModels = [...new Set(candidateModels)];
 
@@ -260,7 +289,11 @@ REGRAS DE REGISTRO E OBRIGATORIEDADE DE DADOS:
    - Sempre que o usuário mencionar 'meu salário', 'quanto eu ganho', 'minhas receitas' ou estabelecer metas baseadas no salário (ex: 'quero economizar 20% do meu salário'), CHAME A FERRAMENTA 'obter_resumo_financeiro' ou 'listar_transacoes' antes de responder.
    - Com o valor do salário consultado (ex: R$ 4.320,00), faça o cálculo exato solicitado (ex: 20% = R$ 864,00 de economia mensal, teto limite máximo de gastos = R$ 3.456,00) e responda com clareza, sugerindo a configuração do limite.
 
-8. ENCERRAMENTO E CORDIALIDADE:
+8. CADASTRO DE MÚLTIPLAS TRANSAÇÕES EM LOTE (RELATÓRIOS E FATURAS):
+   - Se o usuário enviar um relatório, lista, resumo ou fatura contendo vários itens de uma só vez (ex: "EMDAGRO R$ 4200, PicPay R$ 2128, Moto R$ 904, Água R$ 23..."), você DEVE OBRIGATORIAMENTE chamar a ferramenta 'registrar_multiplas_transacoes' enviando a lista completa de todos os itens extraídos da mensagem de uma única vez!
+   - NUNCA responda dizendo "adicionei" ou "dados salvos" sem ter executado a ferramenta 'registrar_multiplas_transacoes' ou 'registrar_transacao' primeiro!
+
+9. ENCERRAMENTO E CORDIALIDADE:
    - Se o usuário não demonstrar mais interesse em adicionar nada, ou se despedir/agradecer (ex: "valeu", "obrigado", "por hoje é só", "não preciso de mais nada", "tchau"), encerre a conversa de forma extremamente cordial, amigável e afirme que está sempre à disposição para quando ele precisar.
 
 ${hasHistory ? 'A conversa JÁ ESTÁ EM ANDAMENTO. Não refaça sua apresentação inicial nem repetitivas saudações. Vá direto ao ponto!' : 'Esta é a primeira mensagem. Pode fazer uma recepção breve e atenciosa.'}`;
@@ -268,106 +301,113 @@ ${hasHistory ? 'A conversa JÁ ESTÁ EM ANDAMENTO. Não refaça sua apresentaç�
     let lastError = null;
 
     for (const modelId of uniqueModels) {
-      try {
-        console.log(`🚀 [GROQ AI] Processing message for ${usuario.nome} with model: ${modelId}`);
+      let attempts = 0;
+      const maxAttempts = 2;
 
-        const messages = [
-          { role: 'system', content: systemPrompt },
-          ...recentHistory,
-          { role: 'user', content: userMessage }
-        ];
+      while (attempts < maxAttempts) {
+        attempts++;
+        try {
+          console.log(`🚀 [GROQ AI] Processing message for ${usuario.nome} with model: ${modelId} (attempt ${attempts})`);
 
-        let iterations = 0;
-        const executedToolSignatures = new Set();
-        let finalReply = '';
+          const messages = [
+            { role: 'system', content: systemPrompt },
+            ...recentHistory,
+            { role: 'user', content: userMessage }
+          ];
 
-        while (iterations < 5) {
-          iterations++;
+          let iterations = 0;
+          const executedToolSignatures = new Set();
+          let finalReply = '';
 
-          const completion = await groq.chat.completions.create({
-            messages,
-            model: modelId,
-            tools: groqTools,
-            tool_choice: 'auto',
-            temperature: 0.1
-          });
+          while (iterations < 5) {
+            iterations++;
 
-          const responseMessage = completion.choices[0].message;
-          messages.push(responseMessage);
+            const completion = await groq.chat.completions.create({
+              messages,
+              model: modelId,
+              tools: groqTools,
+              tool_choice: 'auto',
+              temperature: 0.1
+            });
 
-          // Check if tool calls were returned
-          if (!responseMessage.tool_calls || responseMessage.tool_calls.length === 0) {
-            finalReply = responseMessage.content || 'Operação realizada com sucesso.';
-            break;
+            const responseMessage = completion.choices[0].message;
+            messages.push(responseMessage);
+
+            // Check if tool calls were returned
+            if (!responseMessage.tool_calls || responseMessage.tool_calls.length === 0) {
+              finalReply = responseMessage.content || 'Operação realizada com sucesso.';
+              break;
+            }
+
+            // Execute tool calls
+            for (const toolCall of responseMessage.tool_calls) {
+              const functionName = toolCall.function.name;
+              let args = {};
+
+              try {
+                args = typeof toolCall.function.arguments === 'string'
+                  ? JSON.parse(toolCall.function.arguments)
+                  : toolCall.function.arguments;
+              } catch (e) {
+                args = {};
+              }
+
+              // Deduplication signature per tool call parameters
+              const signature = `${functionName}_${args.descricao || ''}_${args.valor || ''}_${args.categoria_nome || ''}`;
+              if (executedToolSignatures.has(signature)) {
+                console.log(`⚠️ Skipping exact duplicate tool execution: [${signature}]`);
+                continue;
+              }
+
+              console.log(`⚡ [GROQ Tool Call] Executing ${functionName} with args:`, args);
+
+              try {
+                const toolResult = await executeTool(functionName, args, { usuario });
+                executedToolSignatures.add(signature);
+
+                messages.push({
+                  role: 'tool',
+                  tool_call_id: toolCall.id,
+                  content: JSON.stringify(toolResult)
+                });
+              } catch (err) {
+                console.error(`❌ [GROQ Tool Error] ${functionName}:`, err);
+                messages.push({
+                  role: 'tool',
+                  tool_call_id: toolCall.id,
+                  content: JSON.stringify({ status: 'erro', mensagem: err.message })
+                });
+              }
+            }
           }
 
-          // Execute tool calls
-          for (const toolCall of responseMessage.tool_calls) {
-            const functionName = toolCall.function.name;
-            let args = {};
-
-            try {
-              args = typeof toolCall.function.arguments === 'string'
-                ? JSON.parse(toolCall.function.arguments)
-                : toolCall.function.arguments;
-            } catch (e) {
-              args = {};
-            }
-
-            // Deduplication signature per tool call parameters
-            const signature = `${functionName}_${args.descricao || ''}_${args.valor || ''}_${args.categoria_nome || ''}`;
-            if (executedToolSignatures.has(signature)) {
-              console.log(`⚠️ Skipping exact duplicate tool execution: [${signature}]`);
-              continue;
-            }
-
-            console.log(`⚡ [GROQ Tool Call] Executing ${functionName} with args:`, args);
-
-            try {
-              const toolResult = await executeTool(functionName, args, { usuario });
-              executedToolSignatures.add(signature);
-
-              messages.push({
-                role: 'tool',
-                tool_call_id: toolCall.id,
-                content: JSON.stringify(toolResult)
-              });
-            } catch (err) {
-              console.error(`❌ [GROQ Tool Error] ${functionName}:`, err);
-              messages.push({
-                role: 'tool',
-                tool_call_id: toolCall.id,
-                content: JSON.stringify({ status: 'erro', mensagem: err.message })
-              });
-            }
+          if (!finalReply) {
+            finalReply = 'Operação concluída com sucesso.';
           }
-        }
 
-        if (!finalReply) {
-          finalReply = 'Operação concluída com sucesso.';
-        }
+          // Save interaction to memory service
+          memoryService.addUserMessage(usuario.id, userMessage);
+          memoryService.addAssistantReply(usuario.id, finalReply);
 
-        // Save interaction to memory service
-        memoryService.addUserMessage(usuario.id, userMessage);
-        memoryService.addAssistantReply(usuario.id, finalReply);
+          return finalReply;
 
-        return finalReply;
+        } catch (err) {
+          lastError = err;
+          const status = err.status || err.statusCode;
+          console.warn(`⚠️ GROQ model ${modelId} failed on attempt ${attempts} (${status || err.message}).`);
 
-      } catch (err) {
-        lastError = err;
-        console.warn(`⚠️ GROQ model ${modelId} failed (${err.status || err.message}). Trying fallback model...`);
-
-        if (err.status === 429 || (err.message && err.message.includes('429'))) {
-          console.warn(`⏳ Rate limit (429) on GROQ ${modelId}. Switching to next candidate model...`);
-          await this.sleep(1000);
-          continue;
-        } else {
-          continue;
+          if ((status === 429 || (err.message && err.message.includes('429'))) && attempts < maxAttempts) {
+            console.warn(`⏳ Rate limit (429) on GROQ ${modelId}. Waiting 2.5s before retry...`);
+            await this.sleep(2500);
+            continue;
+          }
+          break; // Move to next model if non-429 or max attempts reached for this model
         }
       }
     }
 
-    throw lastError || new Error('All GROQ models failed.');
+    console.error('❌ All GROQ models failed:', lastError?.message || lastError);
+    return 'Desculpe, meu sistema de inteligência artificial está temporariamente sobrecarregado no momento. Por favor, envie sua mensagem novamente em alguns instantes!';
   }
 }
 

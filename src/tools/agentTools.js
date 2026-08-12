@@ -76,6 +76,53 @@ async function executeTool(toolName, args, context) {
       };
     }
 
+    case 'registrar_multiplas_transacoes': {
+      const list = Array.isArray(args.transacoes) ? args.transacoes : [];
+      if (list.length === 0) {
+        return { status: 'erro', mensagem: 'Nenhuma transação enviada na lista.' };
+      }
+
+      const resultados = [];
+      const incomeKeywords = ['salário', 'salario', 'rendimento', 'venda', 'freelance', 'pro-labore', 'prolabore', 'comissão', 'comissao', 'cashback', 'reembolso', 'pagamento recebido'];
+
+      for (const item of list) {
+        const valNum = parseFloat(item.valor);
+        if (isNaN(valNum) || valNum <= 0) continue;
+
+        const descLower = (item.descricao || '').toLowerCase();
+        const catLower = (item.categoria_nome || '').toLowerCase();
+        let tipoFinal = item.tipo_transacao || 'despesa';
+
+        if (incomeKeywords.some(kw => descLower.includes(kw) || catLower.includes(kw))) {
+          tipoFinal = 'receita';
+        }
+
+        try {
+          const res = await supabaseService.createTransaction({
+            usuario_id: userId,
+            descricao: item.descricao || 'Item em lote',
+            valor: valNum,
+            tipo_transacao: tipoFinal,
+            metodo_pagamento: item.metodo_pagamento || 'pix',
+            categoria_nome: item.categoria_nome || (tipoFinal === 'receita' ? 'Salário' : 'Outros'),
+            eh_parcelado: item.eh_parcelado || false,
+            total_parcelas: item.total_parcelas || 1,
+            data_transacao: item.data_transacao || args.data_transacao || new Date().toISOString()
+          });
+          resultados.push(res);
+        } catch (e) {
+          console.warn('⚠️ Erro ao registrar item em lote:', e.message);
+        }
+      }
+
+      return {
+        status: 'sucesso',
+        total_registradas: resultados.length,
+        transacoes: resultados,
+        mensagem: `${resultados.length} transações cadastradas em lote com sucesso!`
+      };
+    }
+
     case 'listar_transacoes': {
       const trans = await supabaseService.listTransactions(userId, args);
       return {
