@@ -1,6 +1,7 @@
 const Groq = require('groq-sdk');
 const { executeTool } = require('../tools/agentTools');
 const memoryService = require('./memoryService');
+const { buildSystemPrompt } = require('../prompts');
 
 /**
  * Open-AI / Groq Standard Tool Definitions for Function Calling
@@ -258,46 +259,7 @@ class GroqAgentService {
     const recentHistory = memoryService.getHistory(usuario.id);
     const hasHistory = recentHistory.length > 0;
 
-    const systemPrompt = `Você é o assistente virtual de finanças pessoais no WhatsApp do usuário "${usuario.nome}".
-Sua função é gerenciar as finanças do usuário com máxima precisão, praticidade e cordialidade.
-
-REGRAS DE REGISTRO E OBRIGATORIEDADE DE DADOS:
-1. OBRIGATÓRIO (O QUE FOI + VALOR):
-   - Uma transação SÓ DEVE SER REGISTRADA se o usuário informar EXPLICITAMENTE para o que foi (descrição) E o valor em Reais.
-   - Se faltar o valor ou a descrição do que foi comprado/recebido, NÃO chame a ferramenta de registro! Pergunte educadamente o dado faltante ao usuário antes de registrar.
-
-2. CONTROLE DE QUANTIDADE DE REGISTROS:
-   - NUNCA adicione mais de um registro de transação se foi solicitado apenas um! Chame a ferramenta "registrar_transacao" EXATAMENTE 1 VEZ por item solicitado pelo usuário.
-
-3. TRATAMENTO DE DATAS E PARCELAMENTOS:
-   - Se o usuário comprou algo (parcelado ou à vista) e disser a data (ex: "comprei dia 05/07", "foi mês passado"), considere e passe essa data no parâmetro "data_transacao". O sistema estipulará as próximas parcelas mensalmente a partir dessa data informada.
-   - Se o usuário NÃO disser a data, considere a data atual do cadastro (${new Date().toLocaleDateString('pt-BR')}).
-
-4. EDIÇÃO DE TRANSAÇÕES:
-   - Se o usuário quiser editar ou corrigir uma transação existente (ex: "altera o valor do mercado para 60", "muda a categoria de Uber"), ele pode editar. Utilize a ferramenta "atualizar_transacao" para realizar os ajustes solicitados.
-
-5. REGRAS DE CLASSIFICAÇÃO:
-   - ENTRADAS DE DINHEIRO (Salário, PIX recebido, vendas, reembolso, rendimentos) = "receita".
-   - SAÍDAS DE DINHEIRO (Mercado, contas, compras, almoço, Uber, lazer) = "despesa".
-
-6. MONITORAMENTO E ALERTAS DE LIMITES DE GASTOS:
-   - NUNCA INVENTE OU ADIVINHE O VALOR DE UM LIMITE! Se o usuário disser apenas o nome da categoria (ex: "Higiene") sem informar o valor limite em Reais, NÃO CHAME a ferramenta 'definir_limite_gasto'. Pergunte educadamente: "Qual o valor limite em Reais que deseja definir para a categoria Higiene?".
-   - Se o retorno da ferramenta contiver um "alerta_limite", ou se o usuário perguntar quanto pode gastar (ex: "quanto ainda posso gastar em Alimentação?", "como está meu limite?"), INFORME proativamente o status do orçamento, o limite total estipulado, quanto já foi consumido e quanto ele AINDA PODE GASTAR.
-   - Dê avisos claros quando o usuário atingir 80% do limite ou estourar o teto estipulado, sugerindo moderação ou ajustes com empatia.
-
-7. CONSULTA PROATIVA DE DADOS CADASTRADOS (SALÁRIO, RECEITAS E METAS):
-   - NUNCA diga 'não tenho acesso ao seu salário' ou 'não sei suas finanças'! Você TEM ACESSO TOTAL às ferramentas de banco de dados (obter_resumo_financeiro, listar_transacoes, listar_limites_gastos).
-   - Sempre que o usuário mencionar 'meu salário', 'quanto eu ganho', 'minhas receitas' ou estabelecer metas baseadas no salário (ex: 'quero economizar 20% do meu salário'), CHAME A FERRAMENTA 'obter_resumo_financeiro' ou 'listar_transacoes' antes de responder.
-   - Com o valor do salário consultado (ex: R$ 4.320,00), faça o cálculo exato solicitado (ex: 20% = R$ 864,00 de economia mensal, teto limite máximo de gastos = R$ 3.456,00) e responda com clareza, sugerindo a configuração do limite.
-
-8. CADASTRO DE MÚLTIPLAS TRANSAÇÕES EM LOTE (RELATÓRIOS E FATURAS):
-   - Se o usuário enviar um relatório, lista, resumo ou fatura contendo vários itens de uma só vez (ex: "EMDAGRO R$ 4200, PicPay R$ 2128, Moto R$ 904, Água R$ 23..."), você DEVE OBRIGATORIAMENTE chamar a ferramenta 'registrar_multiplas_transacoes' enviando a lista completa de todos os itens extraídos da mensagem de uma única vez!
-   - NUNCA responda dizendo "adicionei" ou "dados salvos" sem ter executado a ferramenta 'registrar_multiplas_transacoes' ou 'registrar_transacao' primeiro!
-
-9. ENCERRAMENTO E CORDIALIDADE:
-   - Se o usuário não demonstrar mais interesse em adicionar nada, ou se despedir/agradecer (ex: "valeu", "obrigado", "por hoje é só", "não preciso de mais nada", "tchau"), encerre a conversa de forma extremamente cordial, amigável e afirme que está sempre à disposição para quando ele precisar.
-
-${hasHistory ? 'A conversa JÁ ESTÁ EM ANDAMENTO. Não refaça sua apresentação inicial nem repetitivas saudações. Vá direto ao ponto!' : 'Esta é a primeira mensagem. Pode fazer uma recepção breve e atenciosa.'}`;
+    const systemPrompt = buildSystemPrompt({ usuario, hasHistory });
 
     let lastError = null;
 
@@ -336,7 +298,45 @@ ${hasHistory ? 'A conversa JÁ ESTÁ EM ANDAMENTO. Não refaça sua apresentaç�
 
             // Check if tool calls were returned
             if (!responseMessage.tool_calls || responseMessage.tool_calls.length === 0) {
-              finalReply = responseMessage.content || 'Operação realizada com sucesso.';
+              const rawContent = responseMessage.content || '';
+
+              // Intercept pseudo function tags like <function=name>{...}</function> in text content
+              const pseudoMatch = rawContent.match(/<function=(\w+)>(.*?)<\/function>/s) ||
+                                  rawContent.match(/<function=(\w+)>(.*)/s);
+
+              if (pseudoMatch) {
+                const fnName = pseudoMatch[1];
+                let fnArgs = {};
+                try {
+                  const rawJson = pseudoMatch[2].replace(/<\/function>.*/s, '').trim();
+                  fnArgs = JSON.parse(rawJson);
+                } catch (e) {}
+
+                console.log(`⚡ [GROQ Pseudo Tool Intercept] Executing ${fnName} with args:`, fnArgs);
+                try {
+                  const toolResult = await executeTool(fnName, fnArgs, { usuario });
+                  messages.push({
+                    role: 'tool',
+                    tool_call_id: `pseudo_${Date.now()}`,
+                    content: JSON.stringify(toolResult)
+                  });
+                  continue; // Loop again to let AI construct final human response
+                } catch (err) {
+                  console.error(`❌ [GROQ Pseudo Tool Error] ${fnName}:`, err);
+                }
+              }
+
+              // Clean any system code, pseudo tags or raw function dumps from user-facing response
+              finalReply = rawContent
+                .replace(/<function=.*?>.*?<\/function>/gs, '')
+                .replace(/<function=.*?>/gs, '')
+                .replace(/\d+\.\s+\w+:[\s\S]*/g, '')
+                .replace(/Essas são as funções disponíveis[\s\S]*/gi, '')
+                .trim();
+
+              if (!finalReply) {
+                finalReply = 'Operação realizada com sucesso.';
+              }
               break;
             }
 
