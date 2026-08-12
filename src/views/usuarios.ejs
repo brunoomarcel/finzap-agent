@@ -1,87 +1,149 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="h-full">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FinZap Agent | Usuários Autorizados</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="min-h-full bg-slate-50 text-slate-900 font-['Inter'] antialiased flex flex-col overflow-x-hidden">
 
-  <!-- Navigation -->
-  <nav class="navbar">
-    <div class="brand">
-      <div class="brand-icon">💬</div>
-      <div>FinZap Agent</div>
-    </div>
-    <div class="nav-links">
-      <a href="/" class="nav-link">Dashboard</a>
-      <a href="/usuarios" class="nav-link active">Usuários Autorizados</a>
+  <!-- Navigation Bar -->
+  <nav class="sticky top-0 z-30 w-full bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-3 sm:px-8">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      
+      <div class="flex items-center gap-3">
+        <button id="navToggle" class="sm:hidden p-2 rounded-xl text-slate-700 hover:bg-slate-100 active:bg-slate-200 transition-colors" aria-label="Abrir menu">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
+
+        <a href="/" class="flex items-center gap-2 text-lg font-bold text-slate-900 tracking-tight">
+          <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-500/20">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 0 1-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+            </svg>
+          </div>
+          <span>FinZap Agent</span>
+          <span class="px-2 py-0.5 text-xs font-bold bg-blue-50 text-blue-600 border border-blue-200 rounded-full uppercase tracking-wider">Admin</span>
+        </a>
+      </div>
+
+      <div class="hidden sm:flex items-center gap-2">
+        <a href="/" class="px-3.5 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition-colors">Meu Dashboard</a>
+        <a href="/admin" class="px-3.5 py-2 text-sm font-semibold text-blue-600 bg-blue-50 rounded-lg transition-colors">Administração</a>
+      </div>
+
     </div>
   </nav>
 
-  <div class="container">
+  <!-- Mobile Drawer Menu -->
+  <div id="drawerBackdrop" class="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300"></div>
+  <aside id="drawer" class="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-white transform -translate-x-full transition-transform duration-300 ease-out shadow-2xl flex flex-col rounded-r-2xl overflow-y-auto">
+    <div class="flex items-center justify-between p-4 border-b border-slate-100">
+      <div class="flex items-center gap-2 text-base font-bold text-slate-900">
+        <div class="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 0 1-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+          </svg>
+        </div>
+        <span>FinZap Agent</span>
+      </div>
+      <button id="drawerClose" class="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <nav class="flex-1 p-3 space-y-1">
+      <a href="/" class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 14a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 12a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z"></path>
+        </svg>
+        <span>Meu Dashboard</span>
+      </a>
+      <a href="/admin" class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold bg-blue-50 text-blue-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+        </svg>
+        <span>Administração</span>
+      </a>
+    </nav>
+
+    <div class="p-3 border-t border-slate-100">
+      <a href="/logout" class="flex items-center gap-3 px-3.5 py-3 rounded-xl text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+        </svg>
+        <span>Sair da conta</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Main Container -->
+  <main class="flex-1 w-full max-w-7xl mx-auto px-4 py-6 sm:px-8 space-y-6">
     
-    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
       
       <!-- New User Form -->
-      <div class="card">
-        <div class="section-title">
-          <span>➕</span> Cadastrar Novo Usuário
-        </div>
-        <form id="addUserForm">
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">Nome Completo:</label>
-            <input type="text" id="nomeInput" class="text-input" style="width: 100%;" placeholder="Ex: Bruno Marcel" required>
+      <div class="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-6 shadow-sm min-w-0">
+        <h2 class="text-base sm:text-lg font-bold text-slate-900 mb-4">Cadastrar Novo Usuário</h2>
+        <form id="addUserForm" class="space-y-4">
+          <div>
+            <label for="nomeInput" class="block text-xs font-semibold text-slate-700 mb-1">Nome Completo</label>
+            <input type="text" id="nomeInput" class="w-full px-3 py-2 text-sm text-slate-800 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all" placeholder="Ex: Bruno Marcel" required>
           </div>
-          <div style="margin-bottom: 1rem;">
-            <label style="display: block; font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem;">Telefone WhatsApp (com DDD):</label>
-            <input type="text" id="telefoneInput" class="text-input" style="width: 100%;" placeholder="Ex: 5511999999999 ou 11999999999" required>
-            <small style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 0.25rem;">Apenas este número terá acesso ao assistente no WhatsApp.</small>
+          <div>
+            <label for="telefoneInput" class="block text-xs font-semibold text-slate-700 mb-1">Telefone WhatsApp (com DDD)</label>
+            <input type="text" id="telefoneInput" class="w-full px-3 py-2 text-sm text-slate-800 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all" placeholder="Ex: 5511999999999 ou 11999999999" required>
+            <small class="text-xs text-slate-500 block mt-1">Apenas este número terá acesso ao assistente no WhatsApp.</small>
           </div>
-          <button type="submit" class="btn" style="width: 100%; justify-content: center;">Cadastrar Usuário</button>
+          <button type="submit" class="w-full py-2.5 px-4 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-sm shadow-blue-500/20 transition-colors active:scale-95">
+            Cadastrar Usuário
+          </button>
         </form>
       </div>
 
       <!-- Users List -->
-      <div class="card">
-        <div class="section-title">
-          <span>👥</span> Usuários Cadastrados no Banco
-        </div>
-        <div class="table-responsive">
-          <table>
+      <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-6 shadow-sm min-w-0">
+        <h2 class="text-base sm:text-lg font-bold text-slate-900 mb-4">Usuários Cadastrados no Banco</h2>
+        <div class="w-full overflow-x-auto border border-slate-200 rounded-xl">
+          <table class="w-full text-left min-w-[520px]">
             <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Telefone</th>
-                <th>Status</th>
-                <th>Criado Em</th>
-                <th>Ações</th>
+              <tr class="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-200">
+                <th class="px-4 py-3">Nome</th>
+                <th class="px-4 py-3">Telefone</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-4 py-3">Criado Em</th>
+                <th class="px-4 py-3">Ações</th>
               </tr>
             </thead>
-            <tbody id="usersTableBody">
+            <tbody id="usersTableBody" class="divide-y divide-slate-100">
               <% if (users && users.length > 0) { %>
                 <% users.forEach(u => { %>
-                  <tr>
-                    <td style="font-weight: 600;"><%= u.nome %></td>
-                    <td><%= u.telefone %></td>
-                    <td>
-                      <span class="badge <%= u.ativo ? 'badge-receita' : 'badge-despesa' %>">
+                  <tr class="hover:bg-slate-50/80 transition-colors">
+                    <td class="px-4 py-3 text-sm font-bold text-slate-900 whitespace-nowrap"><%= u.nome %></td>
+                    <td class="px-4 py-3 text-sm text-slate-600 whitespace-nowrap"><%= u.telefone %></td>
+                    <td class="px-4 py-3 text-sm whitespace-nowrap">
+                      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase <%= u.ativo ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200' %>">
                         <%= u.ativo ? 'Ativo' : 'Inativo' %>
                       </span>
                     </td>
-                    <td><%= new Date(u.created_at).toLocaleDateString('pt-BR') %></td>
-                    <td>
-                      <button onclick="deleteUser('<%= u.id %>')" class="btn btn-danger btn-sm">Excluir</button>
+                    <td class="px-4 py-3 text-sm text-slate-600 whitespace-nowrap"><%= new Date(u.created_at).toLocaleDateString('pt-BR') %></td>
+                    <td class="px-4 py-3 text-sm whitespace-nowrap">
+                      <button onclick="deleteUser('<%= u.id %>')" class="px-2.5 py-1 text-xs font-medium text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-lg transition-colors active:scale-95">Excluir</button>
                     </td>
                   </tr>
                 <% }) %>
               <% } else { %>
                 <tr>
-                  <td colspan="5" style="text-align: center; color: var(--text-muted);">Nenhum usuário cadastrado na tabela 'usuarios'.</td>
+                  <td colspan="5" class="px-4 py-6 text-center text-sm text-slate-500">Nenhum usuário cadastrado na tabela 'usuarios'.</td>
                 </tr>
               <% } %>
             </tbody>
@@ -91,8 +153,9 @@
 
     </div>
 
-  </div>
+  </main>
 
+  <script src="/js/app.js"></script>
   <script>
     document.getElementById('addUserForm')?.addEventListener('submit', async (e) => {
       e.preventDefault();

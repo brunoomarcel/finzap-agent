@@ -59,10 +59,15 @@ function formatCurrency(val) {
 }
 
 function renderKPIs(summary) {
-  document.getElementById('kpiReceitas').textContent = formatCurrency(summary.total_receitas);
-  document.getElementById('kpiDespesas').textContent = formatCurrency(summary.total_despesas);
-  document.getElementById('kpiSaldo').textContent = formatCurrency(summary.saldo_liquido);
-  document.getElementById('kpiTransacoesCount').textContent = summary.total_transacoes || 0;
+  const receitasEl = document.getElementById('kpiReceitas');
+  const despesasEl = document.getElementById('kpiDespesas');
+  const saldoEl = document.getElementById('kpiSaldo');
+  const transCountEl = document.getElementById('kpiTransacoesCount');
+
+  if (receitasEl) receitasEl.textContent = formatCurrency(summary.total_receitas);
+  if (despesasEl) despesasEl.textContent = formatCurrency(summary.total_despesas);
+  if (saldoEl) saldoEl.textContent = formatCurrency(summary.saldo_liquido);
+  if (transCountEl) transCountEl.textContent = summary.total_transacoes || 0;
 }
 
 function renderTransactionsTable(transactions) {
@@ -70,7 +75,7 @@ function renderTransactionsTable(transactions) {
   if (!tbody) return;
 
   if (!transactions || transactions.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Nenhuma transação registrada neste período.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="px-4 py-6 text-center text-sm text-slate-500">Nenhuma transação registrada neste período.</td></tr>`;
     updateBatchDeleteButtonState();
     return;
   }
@@ -82,17 +87,21 @@ function renderTransactionsTable(transactions) {
     const parcelasInfo = t.eh_parcelado ? ` (${t.parcela_atual}/${t.total_parcelas}x)` : '';
 
     return `
-      <tr>
-        <td style="text-align: center;">
-          <input type="checkbox" class="row-checkbox" value="${t.id}" onclick="updateBatchDeleteButtonState()" style="cursor: pointer;">
+      <tr class="hover:bg-slate-50/80 border-b border-slate-100 transition-colors">
+        <td class="px-3 py-3 text-center">
+          <input type="checkbox" class="row-checkbox w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" value="${t.id}" onclick="updateBatchDeleteButtonState()">
         </td>
-        <td>${dataFmt}</td>
-        <td><strong>${t.descricao}</strong>${parcelasInfo}</td>
-        <td>${catNome}</td>
-        <td><span class="badge badge-pix">${t.metodo_pagamento || 'outros'}</span></td>
-        <td><strong class="${isDespesa ? 'value-red' : 'value-green'}">${isDespesa ? '-' : '+'}${formatCurrency(t.valor)}</strong></td>
-        <td>
-          <button onclick="deleteTransaction('${t.id}')" class="btn btn-danger btn-sm">Excluir</button>
+        <td class="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">${dataFmt}</td>
+        <td class="px-4 py-3 text-sm font-semibold text-slate-800 whitespace-nowrap">${t.descricao}${parcelasInfo}</td>
+        <td class="px-4 py-3 text-sm text-slate-600 whitespace-nowrap">${catNome}</td>
+        <td class="px-4 py-3 text-sm whitespace-nowrap">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium uppercase bg-sky-50 text-sky-700 border border-sky-200">${t.metodo_pagamento || 'outros'}</span>
+        </td>
+        <td class="px-4 py-3 text-sm font-bold whitespace-nowrap ${isDespesa ? 'text-red-600' : 'text-emerald-600'}">
+          ${isDespesa ? '-' : '+'}${formatCurrency(t.valor)}
+        </td>
+        <td class="px-4 py-3 text-sm whitespace-nowrap">
+          <button onclick="deleteTransaction('${t.id}')" class="px-2.5 py-1 text-xs font-medium text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded transition-colors active:scale-95">Excluir</button>
         </td>
       </tr>
     `;
@@ -116,7 +125,13 @@ function updateBatchDeleteButtonState() {
 
   if (btn && countSpan) {
     countSpan.textContent = selected.length;
-    btn.style.display = selected.length > 0 ? 'inline-flex' : 'none';
+    if (selected.length > 0) {
+      btn.classList.remove('hidden');
+      btn.classList.add('inline-flex');
+    } else {
+      btn.classList.remove('inline-flex');
+      btn.classList.add('hidden');
+    }
   }
 }
 
@@ -177,24 +192,24 @@ function renderLimites(limites) {
   if (!container) return;
 
   if (!limites || limites.length === 0) {
-    container.innerHTML = `<p style="color: var(--text-muted); font-size: 0.85rem;">Nenhum teto de gasto configurado para este mês.</p>`;
+    container.innerHTML = `<p class="text-xs sm:text-sm text-slate-500">Nenhum teto de gasto configurado para este mês.</p>`;
     return;
   }
 
   container.innerHTML = limites.map(l => {
     const perc = parseFloat(l.percentual_usado) || 0;
-    let fillClass = 'fill-normal';
-    if (perc >= 100) fillClass = 'fill-danger';
-    else if (perc >= 80) fillClass = 'fill-warning';
+    let fillClass = 'bg-emerald-500';
+    if (perc >= 100) fillClass = 'bg-red-500';
+    else if (perc >= 80) fillClass = 'bg-amber-500';
 
     return `
-      <div class="limit-item">
-        <div class="limit-header">
-          <span><strong>${l.categoria}</strong></span>
-          <span>${formatCurrency(l.gasto_atual)} / ${formatCurrency(l.valor_limite)} (${l.percentual_usado})</span>
+      <div class="space-y-1.5">
+        <div class="flex justify-between text-xs sm:text-sm font-medium text-slate-700">
+          <span>${l.categoria}</span>
+          <span class="text-slate-500">${formatCurrency(l.gasto_atual)} / ${formatCurrency(l.valor_limite)} (${l.percentual_usado})</span>
         </div>
-        <div class="progress-track">
-          <div class="progress-fill ${fillClass}" style="width: ${Math.min(perc, 100)}%;"></div>
+        <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div class="h-full rounded-full transition-all duration-300 ${fillClass}" style="width: ${Math.min(perc, 100)}%;"></div>
         </div>
       </div>
     `;
@@ -234,8 +249,8 @@ function renderChart(gastosPorCategoria) {
       maintainAspectRatio: false,
       plugins: {
         legend: {
-          position: 'right',
-          labels: { color: '#475569', font: { family: 'Inter' } }
+          position: window.innerWidth < 640 ? 'bottom' : 'right',
+          labels: { color: '#475569', font: { family: 'Inter', size: window.innerWidth < 640 ? 11 : 12 } }
         }
       }
     }
