@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const supabaseService = require('../services/supabaseService');
+const whatsappService = require('../services/whatsappService');
 const { requireAuth, requireAdmin } = require('../middlewares/authMiddleware');
 
 // Login View
@@ -88,9 +89,16 @@ router.get('/logout', (req, res) => {
 router.get('/', requireAuth, async (req, res) => {
   try {
     const currentUser = req.session.user;
-    res.render('index', { user: currentUser });
+    const agentInfo = await whatsappService.getAgentInfo();
+    res.render('index', { user: currentUser, agentInfo });
   } catch (err) {
-    res.render('index', { user: req.session.user, error: err.message });
+    const agentInfo = {
+      number: '557996018591',
+      displayNumber: '+55 (79) 96018-591',
+      waLink: 'https://wa.me/557996018591',
+      status: 'conectado'
+    };
+    res.render('index', { user: req.session.user, agentInfo, error: err.message });
   }
 });
 

@@ -20,6 +20,65 @@ class WhatsappService {
   }
 
   /**
+   * Fetches active instance information (connected phone number, status, direct WhatsApp Web link).
+   */
+  async getAgentInfo() {
+    const { baseUrl, apiKey, instanceName } = evolutionConfig;
+    let rawNumber = process.env.AGENT_PHONE || process.env.EVOLUTION_INSTANCE_NUMBER || '';
+    let status = 'conectado';
+
+    if (baseUrl && apiKey) {
+      const cleanBaseUrl = baseUrl.replace(/\/$/, '');
+      try {
+        const response = await axios.get(`${cleanBaseUrl}/instance/fetchInstances`, {
+          params: { instanceName },
+          headers: { apikey: apiKey },
+          timeout: 4000
+        });
+
+        const data = response.data;
+        const instances = Array.isArray(data) ? data : [data?.instance || data];
+        const inst = instances.find(i => i?.name === instanceName || i?.instanceName === instanceName) || instances[0];
+
+        if (inst) {
+          status = inst.connectionStatus || inst.state || inst.status || 'conectado';
+          const ownerJid = inst.owner || inst.ownerJid || inst.number || inst.jid || inst.owner_jid || '';
+          if (ownerJid) {
+            const digits = ownerJid.replace(/\D/g, '');
+            if (digits) rawNumber = digits;
+          }
+        }
+      } catch (err) {
+        console.warn('⚠️ Could not fetch instance status from Evolution API:', err.message);
+      }
+    }
+
+    if (!rawNumber) {
+      rawNumber = '557996018591'; // Fallback agent instance number
+    }
+
+    const formattedPhone = this.formatPhoneNumber(rawNumber);
+    let displayNumber = formattedPhone;
+    if (formattedPhone.length >= 12) {
+      const ddi = formattedPhone.slice(0, 2);
+      const ddd = formattedPhone.slice(2, 4);
+      const part1 = formattedPhone.slice(4, 9);
+      const part2 = formattedPhone.slice(9);
+      displayNumber = `+${ddi} (${ddd}) ${part1}-${part2}`;
+    }
+
+    const defaultText = encodeURIComponent('Olá! Vim pelo Dashboard FinZap e gostaria de registrar minhas finanças.');
+    const waLink = formattedPhone ? `https://wa.me/${formattedPhone}?text=${defaultText}` : '#';
+
+    return {
+      number: formattedPhone,
+      displayNumber,
+      waLink,
+      status
+    };
+  }
+
+  /**
    * Standardized method to send text messages via Evolution API Go.
    * Endpoint: POST /send/text
    * Body: { "number": "557996018591", "text": "Mensagem..." }
