@@ -1,24 +1,22 @@
-const MOCK_ADMIN = {
-  id: 'c6aa49ad-feec-42ee-9db2-9b68d5376f31',
-  nome: 'Amanda Lima',
-  telefone: '557998262163',
-  role: 'ADMIN'
-};
-
 function requireAuth(req, res, next) {
   if (req.session && req.session.user) {
     return next();
   }
-  req.session.user = MOCK_ADMIN;
-  return next();
+  return res.redirect('/login');
 }
 
 function requireAdmin(req, res, next) {
   if (req.session && req.session.user) {
-    return next();
+    const role = (req.session.user.role || '').toUpperCase();
+    if (role === 'ADMIN') {
+      return next();
+    }
+    return res.status(403).render('error', {
+      user: req.session.user,
+      error: 'Acesso restrito. Apenas administradores têm permissão para acessar o painel de administração.'
+    });
   }
-  req.session.user = MOCK_ADMIN;
-  return next();
+  return res.redirect('/login');
 }
 
 module.exports = {
